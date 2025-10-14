@@ -242,20 +242,15 @@ def page_home():
 
 def page_modules():
     st.title("🧩 Modules")
-    st.caption("Choose a module to continue.")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
     with st.container():
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("### 🧪 Mucus Color")
-            st.write(
-                "Learn how color estimation works and what the results mean, then try the detector.")
-            if st.button("Open Mucus Module →"):
-                nav_to("mucus_info")
-        with c2:
-            st.markdown("### (More coming soon)")
-            st.write("Additional demo modules will appear here.")
+        st.markdown("### 🧪 Mucus Color")
+        st.write(
+            "Learn how color estimation works and what the results mean, then try the detector."
+        )
+        if st.button("Open Mucus Module →"):
+            nav_to("mucus_info")
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("← Back to Home"):
