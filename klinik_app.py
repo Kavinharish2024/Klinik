@@ -1,11 +1,11 @@
-# klinik_app.py  (ASCII-safe version)
+# klinik_app.py  (ASCII-safe + Option B + fixed buttons)
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
 import colorsys
 from typing import Tuple, Dict, Any
 
-# ---------- App Setup (must be the first Streamlit call) ----------
+# ---------- App Setup ----------
 st.set_page_config(
     page_title="Klinik",
     page_icon="",
@@ -16,7 +16,7 @@ st.set_page_config(
     },
 )
 
-# ---------- Color Palette: Natural Wellness ----------
+# ---------- Color Palette: Natural Wellness (Option B) ----------
 PRIMARY = "#2C7A7B"     # muted teal (buttons, headers)
 ACCENT = "#68D391"      # soft green (badges, highlights)
 BACKGROUND = "#F7FAFC"  # warm off-white background
@@ -50,6 +50,24 @@ footer {{ visibility:hidden; }}
 .hero p {{ margin:.5rem 0 0 0; color:{TEXT_DARK}; }}
 
 .card {{ border:1px solid #E2E8F0; border-radius:1rem; padding:1rem; background:white; }}
+
+/* Force button style (works regardless of Streamlit theme) */
+.stButton > button {{
+  background: {PRIMARY} !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 0.6rem 1rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+}}
+.stButton > button:hover {{ filter: brightness(0.95) !important; }}
+.stButton > button:disabled {{
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}}
 </style>
 """
 st.write(CSS, unsafe_allow_html=True)
@@ -168,7 +186,7 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
                  "Heavy or recurrent bleeding: urgent care."]),
         "black": ("Dark mucus (pollution/smoke/blood).",
                   ["Avoid irritants.",
-                   "Persistent? Get medical help."]),
+                  "Persistent? Get medical help."]),
         "uncertain": ("Unclear result.",
                       ["Re-check under good light.",
                        "Focus on symptoms, not just color."]),
@@ -196,7 +214,7 @@ def nav_to(route: str) -> None:
 # ---------- Pages ----------
 def page_home() -> None:
     st.markdown(
-        f"""
+        """
 <div class="hero">
   <h1>Klinik</h1>
   <p>Explore simple wellness modules. Start with the <b>Mucus Color</b> demo to get a broad color estimate and general guidance.</p>
@@ -222,10 +240,10 @@ def page_modules() -> None:
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.markdown("#### Mucus Color")
     st.write("Learn how color estimation works and what the results mean, then try the detector.")
-    if st.button("Open Mucus Module ->"):
+    if st.button("Open Mucus Module ->", use_container_width=True):
         nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    if st.button("Back to Home"):
+    if st.button("Back to Home", use_container_width=True):
         nav_to("home")
 
 def page_mucus_info() -> None:
@@ -248,10 +266,10 @@ def page_mucus_info() -> None:
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Proceed to Detector"):
+        if st.button("Proceed to Detector", use_container_width=True):
             nav_to("mucus_detect")
     with c2:
-        if st.button("Back to Modules"):
+        if st.button("Back to Modules", use_container_width=True):
             nav_to("modules")
 
 def page_mucus_detect() -> None:
@@ -274,11 +292,14 @@ def page_mucus_detect() -> None:
                 help="Helps reduce bias from highlights/shadows.",
             )
 
-        if st.button("Analyze"):
+        if st.button("Analyze", use_container_width=True):
             if robust:
                 rgb = average_rgb(img)
             else:
-                arr = np.asarray(ImageOps.exif_transpose(img).convert("RGB").resize((64, 64)), dtype=np.float32)
+                arr = np.asarray(
+                    ImageOps.exif_transpose(img).convert("RGB").resize((64, 64)),
+                    dtype=np.float32,
+                )
                 rgb = tuple(int(x) for x in arr.mean(axis=(0, 1)))
 
             result = classify_color_with_trace(rgb)
@@ -318,10 +339,10 @@ def page_mucus_detect() -> None:
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Back to Module Info"):
+        if st.button("Back to Module Info", use_container_width=True):
             nav_to("mucus_info")
     with c2:
-        if st.button("Back to Home"):
+        if st.button("Back to Home", use_container_width=True):
             nav_to("home")
 
 # ---------- Router ----------
