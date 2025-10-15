@@ -16,38 +16,46 @@ st.set_page_config(
     },
 )
 
-APP_NAME = "Klinik"
-ACCENT = "#4F46E5"   # indigo
-BACKGROUND = "#DDEBFF"  # light blue background
+# ---------- Color Palette: Natural Wellness ----------
+PRIMARY = "#2C7A7B"     # muted teal (buttons, headers)
+ACCENT = "#68D391"      # soft green (badges, highlights)
+BACKGROUND = "#F7FAFC"  # warm off-white background
+TEXT_DARK = "#1A202C"   # slate gray
+SUCCESS = "#48BB78"     # feedback green
+WARNING = "#F6AD55"
+ERROR = "#E53E3E"
 
 # ---------- Styles ----------
 CSS = f"""
 <style>
-/* Make the whole app background blue */
 .stApp {{
   background-color: {BACKGROUND};
+  color: {TEXT_DARK};
+  font-family: 'Inter', sans-serif;
 }}
-
-.small-muted {{ color:#555; font-size:.9rem; }}
+h1, h2, h3, h4, h5, h6 {{
+  color: {PRIMARY};
+}}
+a, .badge {{
+  color: {PRIMARY};
+}}
 .badge {{
   display:inline-block; padding:.25rem .6rem; border-radius:9999px;
-  background:{ACCENT}20; color:{ACCENT}; font-weight:600; font-size:.8rem;
+  background:{ACCENT}33; color:{PRIMARY}; font-weight:600; font-size:.8rem;
 }}
 .codepill {{
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background:#00000010; padding:.15rem .45rem; border-radius:.4rem;
 }}
-hr.soft {{ border:none; height:1px; background:#eaecef; margin:1.1rem 0; }}
+hr.soft {{ border:none; height:1px; background:#CBD5E0; margin:1.1rem 0; }}
 footer {{ visibility:hidden; }}
-
 .hero {{
   text-align:center; padding:2.2rem 1rem 1.2rem 1rem;
 }}
 .hero h1 {{ margin:0; font-size:2.2rem; }}
-.hero p {{ margin:.5rem 0 0 0; color:#222; }}
-
+.hero p {{ margin:.5rem 0 0 0; color:{TEXT_DARK}; }}
 .card {{
-  border:1px solid #eaecef; border-radius:1rem; padding:1rem; background:white;
+  border:1px solid #E2E8F0; border-radius:1rem; padding:1rem; background:white;
 }}
 </style>
 """
@@ -56,19 +64,17 @@ st.write(CSS, unsafe_allow_html=True)
 # ---------- Session State ----------
 def init_state():
     if "route" not in st.session_state:
-        # home -> modules -> mucus_info -> mucus_detect
         st.session_state["route"] = "home"
     if "mucus_last" not in st.session_state:
-        st.session_state["mucus_last"] = {}  # store last analysis
+        st.session_state["mucus_last"] = {}
 
 init_state()
 
 # ---------- Utils ----------
 def rgb_to_hsv01(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    return colorsys.rgb_to_hsv(r/255.0, g/255.0, b/255.0)
 
 def average_rgb(img: Image.Image) -> Tuple[int, int, int]:
-    """Median-pool a center crop for robust color sampling."""
     img = ImageOps.exif_transpose(img).convert("RGB")
     small = img.resize((96, 96))
     arr = np.asarray(small, dtype=np.uint8)
@@ -81,7 +87,8 @@ def hex_chip(rgb: Tuple[int, int, int]) -> str:
     hx = f"#{r:02x}{g:02x}{b:02x}".upper()
     return f"""
 <div style="display:flex;gap:.6rem;align-items:center;">
-  <div style="width:22px;height:22px;border-radius:.4rem;border:1px solid #00000022;background:{hx};"></div>
+  <div style="width:22px;height:22px;border-radius:.4rem;
+       border:1px solid #00000022;background:{hx};"></div>
   <code class="codepill">{hx}</code>
   <span class="small-muted">(RGB {r}, {g}, {b})</span>
 </div>
@@ -90,59 +97,51 @@ def hex_chip(rgb: Tuple[int, int, int]) -> str:
 def format_float(x: float, nd=3) -> str:
     return f"{x:.{nd}f}"
 
-# ---------- Color Classifier with Rule Trace ----------
+# ---------- Color Classifier ----------
 def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
-    """Return category + human-readable rule trace explaining the decision."""
     r, g, b = rgb
-    h, s, v = rgb_to_hsv01(r, g, b)  # h,s,v in 0..1
+    h, s, v = rgb_to_hsv01(r, g, b)
     hue = h * 360.0
 
-    rules = []  # collect comparisons for a user-facing breakdown
+    rules = []
     def add_rule(name: str, cond: bool, detail: str):
         rules.append({"name": name, "passed": bool(cond), "detail": detail})
 
-    # Defaults
     category, explanation, key, picked_rule = "uncertain", "Hard to classify.", "uncertain", "none"
 
-    # 1) Very dark -> black
     add_rule("Very dark (black test)", v < 0.18, f"V={format_float(v)} < 0.18")
     if v < 0.18:
         category, explanation, key, picked_rule = "black/very dark", "Very low brightness.", "black", "Very dark"
     else:
-        # 2) Clear (very low saturation, high brightness)
         add_rule("Clear test", (s < 0.08 and v > 0.75),
                  f"S={format_float(s)} < 0.08 and V={format_float(v)} > 0.75")
         if s < 0.08 and v > 0.75:
             category, explanation, key, picked_rule = "clear", "Low saturation, high brightness.", "clear", "Clear"
         else:
-            # 3) White/gray (low saturation, mid+ brightness)
             add_rule("White/gray test", (s < 0.15 and v > 0.55),
                      f"S={format_float(s)} < 0.15 and V={format_float(v)} > 0.55")
             if s < 0.15 and v > 0.55:
                 category, explanation, key, picked_rule = "white/gray", "Low saturation + mid brightness.", "white", "White/Gray"
             else:
-                # 4) Yellow band
                 add_rule("Yellow hue band", (35 <= hue <= 75 and s >= 0.18),
-                         f"35° ≤ H={format_float(hue, 1)}° ≤ 75° and S={format_float(s)} ≥ 0.18")
+                         f"35° ≤ H={format_float(hue,1)}° ≤ 75° and S={format_float(s)} ≥ 0.18")
                 if 35 <= hue <= 75 and s >= 0.18:
                     category, explanation, key, picked_rule = "yellow", "Hue in yellow range.", "yellow", "Yellow band"
                 else:
-                    # 5) Green band
                     add_rule("Green hue band", (75 < hue <= 170 and s >= 0.18),
-                             f"75° < H={format_float(hue, 1)}° ≤ 170° and S={format_float(s)} ≥ 0.18")
+                             f"75° < H={format_float(hue,1)}° ≤ 170° and S={format_float(s)} ≥ 0.18")
                     if 75 < hue <= 170 and s >= 0.18:
                         category, explanation, key, picked_rule = "green", "Hue in green range.", "green", "Green band"
                     else:
-                        # 6) Red/pink band
                         add_rule("Red/pink hue band",
                                  ((hue <= 20 or hue >= 340) and s >= 0.2 and v > 0.2),
                                  f"(H ≤ 20° or H ≥ 340°) with S={format_float(s)} ≥ 0.2 and V={format_float(v)} > 0.2")
                         if (hue <= 20 or hue >= 340) and s >= 0.2 and v > 0.2:
                             category, explanation, key, picked_rule = "red/pink", "Hue in red range.", "red", "Red/Pink band"
                         else:
-                            # 7) Brown (dark warm)
-                            add_rule("Brown warm/dark", (v < 0.4 and s >= 0.25 and 15 < hue < 50),
-                                     f"V={format_float(v)} < 0.4 and S={format_float(s)} ≥ 0.25 and 15° < H={format_float(hue, 1)}° < 50°")
+                            add_rule("Brown warm/dark",
+                                     (v < 0.4 and s >= 0.25 and 15 < hue < 50),
+                                     f"V={format_float(v)} < 0.4 and S={format_float(s)} ≥ 0.25 and 15° < H={format_float(hue,1)}° < 50°")
                             if v < 0.4 and s >= 0.25 and 15 < hue < 50:
                                 category, explanation, key, picked_rule = "brown", "Dark warm hue.", "brown", "Brown warm/dark"
 
@@ -188,7 +187,7 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
         "picked_rule": picked_rule,
     }
 
-# ---------- Navigation Helpers ----------
+# ---------- Navigation ----------
 def nav_to(route: str):
     st.session_state["route"] = route
     st.rerun()
@@ -209,24 +208,14 @@ def page_home():
     )
     if st.button("Get Started", use_container_width=True):
         nav_to("modules")
-    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    st.subheader("What to expect")
-    st.markdown(
-        """
-- No diagnosis. These modules provide general, safe information only.
-- Privacy. Images are processed locally in this session.
-- Clarity. We show a transparent breakdown of how the color category was chosen.
-"""
-    )
 
 def page_modules():
     st.title("Modules")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    with st.container():
-        st.markdown("#### Mucus Color")
-        st.write("Learn how color estimation works and what the results mean, then try the detector.")
-        if st.button("Open Mucus Module →"):
-            nav_to("mucus_info")
+    st.markdown("#### Mucus Color")
+    st.write("Learn how color estimation works and what the results mean, then try the detector.")
+    if st.button("Open Mucus Module →"):
+        nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("Back to Home"):
         nav_to("home")
@@ -235,24 +224,18 @@ def page_mucus_info():
     st.title("Mucus Color — Overview")
     st.caption("Read a quick primer, then proceed to the detector.")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-
     st.subheader("How this works")
-    st.write(
-        """
+    st.write("""
 We evaluate throat mucus color using HSV (hue–saturation–value) features and compare them to simple thresholds.
 Use good lighting and a white background for best results.
-"""
-    )
-    st.markdown(
-        """
+""")
+    st.markdown("""
 **Best way to proceed:**
 - Use a plain white tissue or background.
 - Prefer natural/neutral light; avoid colored lights or filters.
 - Keep the camera in focus.
-"""
-    )
+""")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Proceed to Detector"):
@@ -283,14 +266,12 @@ def page_mucus_detect():
             if robust:
                 rgb = average_rgb(img)
             else:
-                # Simple mean over a downscaled image
                 arr = np.asarray(ImageOps.exif_transpose(img).convert("RGB").resize((64, 64)), dtype=np.float32)
                 rgb = tuple(int(x) for x in arr.mean(axis=(0, 1)))
 
             result = classify_color_with_trace(rgb)
             st.session_state["mucus_last"] = result
 
-    # If we have a previous result, show it
     if st.session_state["mucus_last"]:
         res = st.session_state["mucus_last"]
         rgb = res["rgb"]
@@ -300,38 +281,19 @@ def page_mucus_detect():
         st.markdown("<hr class='soft' />", unsafe_allow_html=True)
         st.subheader(f"Estimated: {res['category']}")
         st.write(f"*{res['explanation']}*")
-
         st.markdown(hex_chip(rgb), unsafe_allow_html=True)
-        st.markdown(
-            f"""
-**Color metrics**
-- Hue: **{format_float(hue, 1)}°**
-- Saturation: **{format_float(s)}**
-- Value (brightness): **{format_float(v)}**
-"""
-        )
+        st.markdown(f"**Hue:** {format_float(hue,1)}°, **Saturation:** {format_float(s)}, **Value:** {format_float(v)}")
 
-        st.markdown("**Decision breakdown (rule trace):**")
+        st.markdown("**Decision breakdown:**")
         for r in res["rules"]:
-            status = "Passed" if r["passed"] else "—"
-            st.markdown(f"- {status} — **{r['name']}**: {r['detail']}")
-        st.caption(f"Picked rule: **{res['picked_rule']}**")
+            status = "✔" if r["passed"] else "—"
+            st.markdown(f"- {status} {r['name']} — {r['detail']}")
+        st.caption(f"Picked rule: {res['picked_rule']}")
 
         st.markdown("<hr class='soft' />", unsafe_allow_html=True)
         st.markdown(f"**Summary:** {res['summary']}")
-        st.markdown("**What you can do (general):**")
         for a in res["actions"]:
             st.markdown(f"- {a}")
-
-        with st.expander("What this means & next steps"):
-            st.write(
-                """
-- Color is not a diagnosis. Hydration, lighting, and background affect appearance.
-- Track symptoms: fever, chest pain, shortness of breath, worsening cough, duration >10 days.
-- Seek prompt care for heavy/recurrent bleeding, severe breathing issues, high fever, or if you are immunocompromised/pregnant/very young/older adult.
-- Home care basics: rest, fluids, humidified air, avoid smoke/dust.
-"""
-            )
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
@@ -355,7 +317,6 @@ elif route == "mucus_detect":
 else:
     page_home()
 
-# ---------- Global Footer ----------
 st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 st.markdown(
     "**Disclaimer:** Klinik is an educational demo, not a medical device. "
