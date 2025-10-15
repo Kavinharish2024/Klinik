@@ -17,7 +17,7 @@ from typing import Tuple, Dict, Any
 # ---------- App Setup ----------
 st.set_page_config(
     page_title="Klinik",
-    page_icon="🩺",
+    page_icon="",
     layout="centered",
     menu_items={
         "Get Help": "https://www.cdc.gov/",
@@ -241,11 +241,11 @@ def page_home():
 
 
 def page_modules():
-    st.title("🧩 Modules")
+    st.title("Modules")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
     with st.container():
-        st.markdown("### 🧪 Mucus Color")
+        st.markdown("Mucus Color")
         st.write(
             "Learn how color estimation works and what the results mean, then try the detector."
         )
@@ -258,27 +258,27 @@ def page_modules():
 
 
 def page_mucus_info():
-    st.title("🧪 Mucus Color — Overview")
+    st.title("Mucus Color — Overview")
     st.caption("Read a quick primer, then proceed to the detector.")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
     st.subheader("How this works")
     st.write("""
-We compute a robust average color from the **center** of your uploaded image,
-convert that to **HSV** (hue–saturation–value), then map it to broad categories using threshold rules.
-This is **not** a clinical color chart. Lighting and background can strongly affect results.
+We evaluate your throat mucus condition based on a set of features involving
+**HSV** (hue–saturation–value). We then scale it to categories with threshold values.
+Make sure to find a good lightning and have a white surface.
 """)
     st.markdown("""
-**Good practice before you proceed:**
+**Best way to proceed:**
 - Use a **plain white tissue** or background.
-- Prefer **natural/neutral light**; avoid colored bulbs and filters.
-- Keep the camera steady and in focus.
+- Prefer **natural/neutral light**; avoid colored filters or lights.
+- Keep the camera in focus.
 """)
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("🔬 Proceed to Detector"):
+        if st.button("Proceed to Detector"):
             nav_to("mucus_detect")
     with c2:
         if st.button("← Back to Modules"):
@@ -366,7 +366,7 @@ def page_mucus_detect():
         if st.button("← Back to Module Info"):
             nav_to("mucus_info")
     with c2:
-        if st.button("🏠 Back to Home"):
+        if st.button("Back to Home"):
             nav_to("home")
 
 
@@ -386,6 +386,6 @@ else:
 # ---------- Global Footer ----------
 st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 st.markdown(
-    "⚠️ **Disclaimer:** Klinik is an educational demo, not a medical device. "
+    "**Disclaimer:** Klinik is an educational demo, not a medical device. "
     "It cannot diagnose or exclude any condition. If you feel unwell, seek professional care."
 )
