@@ -11,8 +11,7 @@ st.set_page_config(
     page_icon="",
     layout="centered",
     menu_items={
-        "Get Help": "https://www.cdc.gov/",
-        "About": "Klinik is an educational demo. It is NOT a medical device.",
+        "Get More Info": "https://www.cdc.gov/",
     },
 )
 
@@ -314,7 +313,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Try the <b>Mucus Color</b> demo. We will show a single, plain-language explainer for the detected color — nothing else.</p>
+  <p>Try the <b>Mucus Color</b> Detector. We will show a single, plain-language explainer for the detected color — nothing else.</p>
   <div style="margin-top:1rem;">
     <span class="badge">Educational only — Not a medical device</span>
   </div>
@@ -370,7 +369,7 @@ def page_mucus_info() -> None:
             nav_to("modules")
 
 def page_mucus_detect() -> None:
-    st.title("Mucus Color Detector (Demo)")
+    st.title("Mucus Color Detector")
     st.caption("Educational only • Not a medical device • If you feel unwell, talk to a clinician.")
     st.write("Upload a photo on white tissue in neutral light. Avoid filters and colored backgrounds.")
 
@@ -433,6 +432,6 @@ else:
 # ---------- Footer ----------
 st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 st.markdown(
-    "Disclaimer: Klinik is an educational demo, not a medical device. "
+    "Disclaimer: Klinik is an educational tool, not a medical device. "
     "It cannot diagnose or exclude any condition. If you feel unwell, seek professional care."
 )
