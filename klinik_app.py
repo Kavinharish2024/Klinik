@@ -1,4 +1,4 @@
-# klinik_app.py  (ASCII-safe, updated theme, humanized copy, post-detect explainer)
+# klinik_app.py  (ASCII-safe, updated theme, tuned classifier, trace-only output)
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
@@ -20,7 +20,7 @@ st.set_page_config(
 # Background:  #98c1d9
 # Buttons:     #e0fbfc
 # Text:        #293241
-PRIMARY = "#293241"     # used for headings and text emphasis
+PRIMARY = "#293241"     # headings and text emphasis
 ACCENT = "#e0fbfc"      # buttons
 BACKGROUND = "#98c1d9"  # page background
 TEXT_DARK = "#293241"   # all text
@@ -98,75 +98,86 @@ def average_rgb(img: Image.Image) -> Tuple[int, int, int]:
     med = np.median(center, axis=(0, 1))
     return tuple(int(x) for x in med)
 
-def hex_chip(rgb: Tuple[int, int, int]) -> str:
-    r, g, b = rgb
-    hx = f"#{r:02x}{g:02x}{b:02x}".upper()
-    return f"""
-<div style="display:flex;gap:.6rem;align-items:center;">
-  <div style="width:22px;height:22px;border-radius:.4rem;border:1px solid #00000022;background:{hx};"></div>
-  <code class="codepill">{hx}</code>
-  <span style="color:{TEXT_DARK};font-size:.9rem;">(RGB {r}, {g}, {b})</span>
-</div>
-"""
-
 def format_float(x: float, nd: int = 3) -> str:
     return f"{x:.{nd}f}"
 
-# ---------- Color Classifier ----------
+# ---------- Color Classifier (tuned with tolerances and amber band) ----------
+def _hue_in_range(h_deg: float, lo: float, hi: float, eps: float = 0.8) -> bool:
+    """Inclusive range with tolerance; supports wrap-around if lo > hi."""
+    if lo <= hi:
+        return (lo - eps) <= h_deg <= (hi + eps)
+    return h_deg >= (lo - eps) or h_deg <= (hi + eps)
+
 def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
     r, g, b = rgb
-    h, s, v = rgb_to_hsv01(r, g, b)
+    h, s, v = rgb_to_hsv01(r, g, b)     # 0..1
     hue = h * 360.0
 
     rules = []
     def add_rule(name: str, cond: bool, detail: str) -> None:
         rules.append({"name": name, "passed": bool(cond), "detail": detail})
 
-    category, explanation, key, picked_rule = "uncertain", "Hard to classify.", "uncertain", "none"
+    category = "uncertain"
+    explanation = "Hard to classify."
+    key = "uncertain"
+    picked_rule = "none"
+
+    # Order: darkness -> low-sat neutrals -> brown (requires darkness) -> chromatic bands
+    # Thresholds:
+    # - black/very dark: v < 0.16
+    # - clear: s < 0.07 and v > 0.80
+    # - white/gray: s < 0.18 and v > 0.60
+    # - brown (dark warm): v < 0.45 and s >= 0.25 and 15 < hue < 50
+    # - yellow/amber: 25..75 with s >= 0.16 and v >= 0.50
+    # - green: 75..170 with s >= 0.20
+    # - red/pink: hue <= 18 or hue >= 342 with s >= 0.20 and v > 0.25
 
     # 1) Very dark -> black
-    add_rule("Very dark (black test)", v < 0.18, f"V={format_float(v)} < 0.18")
-    if v < 0.18:
+    add_rule("Very dark (black test)", v < 0.16, f"V={format_float(v)} < 0.16")
+    if v < 0.16:
         category, explanation, key, picked_rule = "black/very dark", "Very low brightness.", "black", "Very dark"
     else:
-        # 2) Clear (low S, high V)
-        add_rule("Clear test", (s < 0.08 and v > 0.75),
-                 f"S={format_float(s)} < 0.08 and V={format_float(v)} > 0.75")
-        if s < 0.08 and v > 0.75:
+        # 2) Clear
+        add_rule("Clear test", (s < 0.07 and v > 0.80),
+                 f"S={format_float(s)} < 0.07 and V={format_float(v)} > 0.80")
+        if s < 0.07 and v > 0.80:
             category, explanation, key, picked_rule = "clear", "Low saturation, high brightness.", "clear", "Clear"
         else:
-            # 3) White/gray (low S, mid+ V)
-            add_rule("White/gray test", (s < 0.15 and v > 0.55),
-                     f"S={format_float(s)} < 0.15 and V={format_float(v)} > 0.55")
-            if s < 0.15 and v > 0.55:
+            # 3) White/gray
+            add_rule("White/gray test", (s < 0.18 and v > 0.60),
+                     f"S={format_float(s)} < 0.18 and V={format_float(v)} > 0.60")
+            if s < 0.18 and v > 0.60:
                 category, explanation, key, picked_rule = "white/gray", "Low saturation + mid brightness.", "white", "White/Gray"
             else:
-                # 4) Yellow band
-                add_rule("Yellow hue band", (35 <= hue <= 75 and s >= 0.18),
-                         f"35 <= H={format_float(hue,1)} <= 75 and S={format_float(s)} >= 0.18")
-                if 35 <= hue <= 75 and s >= 0.18:
-                    category, explanation, key, picked_rule = "yellow", "Hue in yellow range.", "yellow", "Yellow band"
+                # 4) Brown requires darkness; prevents bright ambers being tagged brown
+                add_rule("Brown warm/dark",
+                         (v < 0.45 and s >= 0.25 and 15 < hue < 50),
+                         f"V={format_float(v)} < 0.45 and S={format_float(s)} >= 0.25 and 15 < H={format_float(hue,1)} < 50")
+                if v < 0.45 and s >= 0.25 and 15 < hue < 50:
+                    category, explanation, key, picked_rule = "brown", "Dark warm hue.", "brown", "Brown warm/dark"
                 else:
-                    # 5) Green band
-                    add_rule("Green hue band", (75 < hue <= 170 and s >= 0.18),
-                             f"75 < H={format_float(hue,1)} <= 170 and S={format_float(s)} >= 0.18")
-                    if 75 < hue <= 170 and s >= 0.18:
-                        category, explanation, key, picked_rule = "green", "Hue in green range.", "green", "Green band"
+                    # 5) Yellow / Amber (wider band, lower sat floor, min brightness)
+                    add_rule("Yellow/Amber hue band",
+                             (_hue_in_range(hue, 25, 75) and s >= 0.16 and v >= 0.50),
+                             f"25 <= H={format_float(hue,1)} <= 75 and S={format_float(s)} >= 0.16 and V={format_float(v)} >= 0.50")
+                    if _hue_in_range(hue, 25, 75) and s >= 0.16 and v >= 0.50:
+                        category, explanation, key, picked_rule = "yellow/amber", "Hue in yellow/amber range.", "yellow", "Yellow/Amber band"
                     else:
-                        # 6) Red/pink band
-                        add_rule("Red/pink hue band",
-                                 ((hue <= 20 or hue >= 340) and s >= 0.2 and v > 0.2),
-                                 f"(H <= 20 or H >= 340) with S={format_float(s)} >= 0.2 and V={format_float(v)} > 0.2")
-                        if (hue <= 20 or hue >= 340) and s >= 0.2 and v > 0.2:
-                            category, explanation, key, picked_rule = "red/pink", "Hue in red range.", "red", "Red/Pink band"
+                        # 6) Green
+                        add_rule("Green hue band",
+                                 (_hue_in_range(hue, 75, 170) and s >= 0.20),
+                                 f"75 <= H={format_float(hue,1)} <= 170 and S={format_float(s)} >= 0.20")
+                        if _hue_in_range(hue, 75, 170) and s >= 0.20:
+                            category, explanation, key, picked_rule = "green", "Hue in green range.", "green", "Green band"
                         else:
-                            # 7) Brown (dark warm)
-                            add_rule("Brown warm/dark",
-                                     (v < 0.4 and s >= 0.25 and 15 < hue < 50),
-                                     f"V={format_float(v)} < 0.4 and S={format_float(s)} >= 0.25 and 15 < H={format_float(hue,1)} < 50")
-                            if v < 0.4 and s >= 0.25 and 15 < hue < 50:
-                                category, explanation, key, picked_rule = "brown", "Dark warm hue.", "brown", "Brown warm/dark"
+                            # 7) Red/Pink (wrap-around)
+                            add_rule("Red/pink hue band",
+                                     ((_hue_in_range(hue, 342, 360) or _hue_in_range(hue, 0, 18)) and s >= 0.20 and v > 0.25),
+                                     f"(H <= 18 or H >= 342) with S={format_float(s)} >= 0.20 and V={format_float(v)} > 0.25")
+                            if ((_hue_in_range(hue, 342, 360) or _hue_in_range(hue, 0, 18)) and s >= 0.20 and v > 0.25):
+                                category, explanation, key, picked_rule = "red/pink", "Hue in red range.", "red", "Red/Pink band"
 
+    # Guidance retained for internal use; not displayed in trace-only UI
     guidance = {
         "clear": ("Often normal hydration/irritation.",
                   ["Usually benign if you feel well.",
@@ -194,10 +205,15 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
                       ["Retake photo in neutral light on white background.",
                        "Track symptoms over time, not just color."]),
     }
+
+    # Map yellow/amber to yellow guidance key (for any future UI use)
+    if key in ("yellow/amber",):
+        key = "yellow"
+
     summary, actions = guidance.get(key, guidance["uncertain"])
 
     return {
-        "rgb": rgb,
+        "rgb": (int(r), int(g), int(b)),
         "hsv01": (h, s, v),
         "hue_deg": hue,
         "category": category,
@@ -208,147 +224,6 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
         "rules": rules,
         "picked_rule": picked_rule,
     }
-
-# ---------- Human-friendly explainers to show AFTER detection ----------
-EXPLAINERS: Dict[str, str] = {
-    "clear": """
-### Clear Mucus
-**Color snapshot.** Transparent and watery; the most common, usually healthy.
-
-**The science.** Mucus is mostly water plus mucins and salts. Clear means that water-to-mucin balance is good. Tiny hairlike cilia move it along to trap dust and microbes and keep things moist.
-
-**Possible causes**
-- Normal hydration
-- Mild allergies or light dust/pollen
-- Early cold stage (before mucus thickens)
-- Temperature or humidity changes
-
-**What to do**
-- Drink water
-- Use a humidifier if air is dry
-- Avoid smoke, strong perfumes
-- No real concern unless it changes color, thickens, or new symptoms show up
-""",
-    "white": """
-### White or Gray Mucus
-**Color snapshot.** Cloudy, milky, and thicker than clear.
-
-**The science.** As mucus loses water, mucins concentrate and look cloudy. Slower airflow with congestion traps more cells and proteins, adding to the pale look.
-
-**Possible causes**
-- Mild nasal/sinus congestion
-- Early cold or minor irritation
-- Dehydration or dry air
-- Temporary airway inflammation
-
-**What to do**
-- Hydrate
-- Saline spray or humidifier
-- Warm showers/steam can help
-- Usually clears on its own; check in if it lingers or worsens
-""",
-    "yellow": """
-### Yellow Mucus
-**Color snapshot.** Thicker with a pale to deeper yellow tint.
-
-**The science.** When your immune system engages, white blood cells (like neutrophils) release enzymes and iron-containing proteins that tint the mucus yellow. It signals activity, not automatically infection.
-
-**Possible causes**
-- Mild viral cold
-- Allergic flare with inflammation
-- Healing stage after a recent bug
-- Daytime thickening from low hydration
-
-**What to do**
-- Rest and fluids
-- Steam or humid air to thin it
-- Avoid unnecessary antibiotics (color alone is not proof)
-- If fever or symptoms last >~10 days, get medical advice
-""",
-    "green": """
-### Green Mucus
-**Color snapshot.** Dense, vividly green; sometimes olive-toned.
-
-**The science.** More neutrophils = more myeloperoxidase (a green iron enzyme), which deepens the color. Often linked with infection, but color mainly reflects inflammation level.
-
-**Possible causes**
-- Ongoing sinus inflammation or infection
-- Allergic irritation lasting several days
-- Pollution, smoke, or dusty air
-
-**What to do**
-- Hydrate, rest
-- Gentle saline rinses
-- Avoid polluted air or smoking
-- If it sticks around >~10 days or comes with fever, seek care
-""",
-    "brown": """
-### Brown (or Rust) Mucus
-**Color snapshot.** Reddish-brown; may look dry or grainy.
-
-**The science.** Usually oxidized hemoglobin (old or dried blood) or inhaled particles. As blood ages, iron darkens to brown.
-
-**Possible causes**
-- Minor nose irritation/dryness with tiny capillary breaks
-- Smoke or dust exposure
-- Frequent blowing or nose picking
-- Post-nasal drip mixing with old blood
-
-**What to do**
-- Avoid irritants and dry air
-- Use saline to keep passages moist
-- If frequent or heavy, check with a clinician
-""",
-    "red": """
-### Red or Pink Mucus
-**Color snapshot.** Fresh blood streaks or pinkish tones.
-
-**The science.** Delicate nasal capillaries can rupture; small amounts of fresh blood mix with mucus before clotting.
-
-**Possible causes**
-- Dry air or dehydration
-- Forceful blowing or frequent wiping
-- Irritation from allergens or infection
-
-**What to do**
-- Go easy when clearing the nose
-- Humidifier + saline spray
-- If bleeding is frequent, heavy, or with other symptoms, seek medical care
-""",
-    "black": """
-### Black or Very Dark Mucus
-**Color snapshot.** Dark gray to black; can look thick or speckled.
-
-**The science.** Often from particles (smoke, soot, dust) sticking to mucus. Less commonly, oxidized blood deep in the sinuses.
-
-**Possible causes**
-- Pollution or smoke exposure
-- Dusty environments (construction, fireplaces)
-- Chronic nasal dryness or irritation
-- Rarely, certain fungal infections
-
-**What to do**
-- Get to clean, humid air
-- Sterile saline rinses
-- Avoid smoking and polluted spaces
-- If persistent without a clear cause, see a clinician
-""",
-    "uncertain": """
-### Uncertain or Mixed Color
-**Color snapshot.** Hard to classify; mixed tones or odd lighting.
-
-**The science.** Lighting, camera filters, and tissue color can skew hue. Mixed colors can happen as your immune response shifts or hydration changes.
-
-**Possible causes**
-- Lighting or camera white balance
-- Transition phase of an illness or recovery
-- Varying hydration; mild irritation
-
-**What to do**
-- Retake the photo in natural light on plain white
-- Focus more on symptoms and trend over time than a single color
-"""
-}
 
 # ---------- Navigation ----------
 def nav_to(route: str) -> None:
@@ -361,7 +236,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Explore simple, educational wellness modules. Start with the <b>Mucus Color</b> demo to see a rough color estimate and plain-language guidance.</p>
+  <p>Explore simple, educational wellness modules. Start with the <b>Mucus Color</b> demo to see a rough color estimate and a transparent rule trace.</p>
   <div style="margin-top:1rem;">
     <span class="badge">Educational only — Not a medical device</span>
   </div>
@@ -376,14 +251,14 @@ def page_home() -> None:
     st.markdown(
         "- No diagnosis. General information only.\n"
         "- Privacy. Images are processed in this session.\n"
-        "- Transparency. We show how the color guess was chosen."
+        "- Transparency. You will see the rule trace used to decide color."
     )
 
 def page_modules() -> None:
     st.title("Modules")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.markdown("#### Mucus Color")
-    st.write("Learn how color estimation works, what the results mean, then try the detector.")
+    st.write("Learn how color estimation works, then try the detector.")
     if st.button("Open Mucus Module ->", use_container_width=True):
         nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
@@ -397,7 +272,7 @@ def page_mucus_info() -> None:
 
     st.subheader("How the detector works")
     st.write(
-        "We look at HSV color (hue, saturation, value) from a center crop and compare it to simple thresholds. "
+        "We compute HSV color (hue, saturation, value) from a center crop and compare it to simple thresholds. "
         "For best results, use neutral lighting and a plain white background."
     )
     st.markdown(
@@ -449,42 +324,15 @@ def page_mucus_detect() -> None:
             result = classify_color_with_trace(rgb)
             st.session_state["mucus_last"] = result
 
-    # Show last result (if any)
+    # ----- Trace-only output (no estimate/hex/metrics/summary) -----
     if st.session_state.get("mucus_last"):
         res = st.session_state["mucus_last"]
-        rgb = res["rgb"]
-        h, s, v = res["hsv01"]
-        hue = res["hue_deg"]
-
         st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-        st.subheader(f"Estimated: {res['category']}")
-        st.write(f"*{res['explanation']}*")
-        st.markdown(hex_chip(rgb), unsafe_allow_html=True)
-
-        st.markdown(
-            f"**Color metrics**  \n"
-            f"Hue: {format_float(hue, 1)} deg  \n"
-            f"Saturation: {format_float(s)}  \n"
-            f"Value (brightness): {format_float(v)}"
-        )
-
         st.markdown("**Decision breakdown (rule trace):**")
         for r in res["rules"]:
             status = "Passed" if r["passed"] else "—"
             st.markdown(f"- {status} — {r['name']}: {r['detail']}")
-        st.caption(f"Picked rule: {res['picked_rule']}")
-
-        st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-        st.markdown(f"**Summary:** {res['summary']}")
-        st.markdown("**What you can do (general):**")
-        for a in res["actions"]:
-            st.markdown(f"- {a}")
-
-        # ----- Post-detection explainer (full section) -----
-        key = res.get("key", "uncertain")
-        explainer_md = EXPLAINERS.get(key, EXPLAINERS["uncertain"])
-        st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-        st.markdown(explainer_md)
+        st.caption(f"Picked rule: {res.get('picked_rule', 'none')}")
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
