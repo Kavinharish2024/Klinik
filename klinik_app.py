@@ -1,4 +1,4 @@
-# klinik_app.py (clean version, "modules" -> "checkups")
+# klinik_app.py (clean version, "modules" -> "check-ups")
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
@@ -236,7 +236,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Try the <b>Mucus Color</b> Detector — we’ll show a simple, clear explanation of what your color might mean.</p>
+  <p>Try the Klinik Mucus Color Detector. Clear your throat mucus onto a white surface like a sink or tissue. Then, take an image, upload it to the detector, and find out what the color of your mucus actually means!</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -249,7 +249,7 @@ def page_checkups() -> None:
     st.title("Checkups")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.subheader("Mucus Color")
-    st.write("Learn what each color could indicate, then try the detector.")
+    st.write("Find out what the color of your throat mucus means by uploading an image.")
     if st.button("Open Mucus Checkup ->", use_container_width=True):
         nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
@@ -260,7 +260,7 @@ def page_mucus_info() -> None:
     st.title("How It Works")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.write(
-        "We analyze the average color in the image using hue, saturation, and brightness to estimate its tone. "
+        "Klinik analyzes the average color of your mucus using three parameters: hue, saturation, and brightness. Based of this, we estimate its tone and give a break down of what it may mean. "
         "Use good lighting and a white background for accuracy."
     )
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
