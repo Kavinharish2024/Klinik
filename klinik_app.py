@@ -1,4 +1,4 @@
-# klinik_app.py (clean version without disclaimers)
+# klinik_app.py (clean version, "modules" -> "checkups")
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
@@ -236,21 +236,21 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Try the Klinik Mucus Color Detector. Clear your throat mucus, and put it on a white tissue. Submit an image and find out what your mucus color means, and fascinating information about it!</p>
+  <p>Try the <b>Mucus Color</b> Detector — we’ll show a simple, clear explanation of what your color might mean.</p>
 </div>
 """,
         unsafe_allow_html=True,
     )
     if st.button("Get Started", use_container_width=True):
-        nav_to("modules")
+        nav_to("checkups")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
-def page_modules() -> None:
-    st.title("Modules")
+def page_checkups() -> None:
+    st.title("Checkups")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.subheader("Mucus Color")
     st.write("Learn what each color could indicate, then try the detector.")
-    if st.button("Open Mucus Module ->", use_container_width=True):
+    if st.button("Open Mucus Checkup ->", use_container_width=True):
         nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("Back to Home", use_container_width=True):
@@ -260,17 +260,17 @@ def page_mucus_info() -> None:
     st.title("How It Works")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.write(
-        "Klinik analyzes the average color of your throat mucus using a set of parameters (hue, saturation, and brightness) to estimate its tone. "
-        "Ensure good lighting and a white background for accuracy."
+        "We analyze the average color in the image using hue, saturation, and brightness to estimate its tone. "
+        "Use good lighting and a white background for accuracy."
     )
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    if st.button("Proceed to Detector", use_container_width=True):
+    if st.button("Proceed to Checkup", use_container_width=True):
         nav_to("mucus_detect")
-    if st.button("Back to Modules", use_container_width=True):
-        nav_to("modules")
+    if st.button("Back to Checkups", use_container_width=True):
+        nav_to("checkups")
 
 def page_mucus_detect() -> None:
-    st.title("Mucus Color Detector")
+    st.title("Mucus Color Checkup")
     st.write("Upload a photo of mucus on a white background under natural light.")
     uploaded = st.file_uploader("Upload a photo", type=["jpg", "jpeg", "png", "webp"])
     if uploaded:
@@ -284,15 +284,15 @@ def page_mucus_detect() -> None:
         st.markdown("<hr class='soft' />", unsafe_allow_html=True)
         st.markdown(st.session_state["mucus_last"])
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    if st.button("Back to Home", use_container_width=True):
-        nav_to("home")
+    if st.button("Back to Checkups", use_container_width=True):
+        nav_to("checkups")
 
 # ---------- Router ----------
 route = st.session_state["route"]
 if route == "home":
     page_home()
-elif route == "modules":
-    page_modules()
+elif route == "checkups":
+    page_checkups()
 elif route == "mucus_info":
     page_mucus_info()
 elif route == "mucus_detect":
