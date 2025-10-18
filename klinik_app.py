@@ -236,7 +236,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Try the <b>Mucus Color</b> Detector — we’ll show a simple, clear explanation of what your color might mean.</p>
+  <p>Try the Klinik Mucus Color Detector. Clear your throat mucus, and put it on a white tissue. Submit an image and find out what your mucus color means, and fascinating information about it!</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -260,8 +260,8 @@ def page_mucus_info() -> None:
     st.title("How It Works")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.write(
-        "We analyze the average color in the image using hue, saturation, and brightness to estimate its tone. "
-        "Use good lighting and a white background for accuracy."
+        "Klinik analyzes the average color of your throat mucus using a set of parameters (hue, saturation, and brightness) to estimate its tone. "
+        "Ensure good lighting and a white background for accuracy."
     )
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("Proceed to Detector", use_container_width=True):
