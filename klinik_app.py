@@ -11,7 +11,8 @@ st.set_page_config(
     page_icon="",
     layout="centered",
     menu_items={
-        "Get More Info": "https://www.cdc.gov/",
+        "Get Help": "https://www.cdc.gov/",
+        "About": "Klinik is an educational wellness app built to help users understand mucus color and hydration patterns.",
     },
 )
 
