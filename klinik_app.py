@@ -257,9 +257,8 @@ def page_modules() -> None:
         nav_to("home")
 
 def page_mucus_info() -> None:
-    st.title("Mucus Color — Overview")
+    st.title("How It Works")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    st.subheader("How it works")
     st.write(
         "We analyze the average color in the image using hue, saturation, and brightness to estimate its tone. "
         "Use good lighting and a white background for accuracy."
