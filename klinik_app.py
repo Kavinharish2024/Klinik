@@ -1,4 +1,4 @@
-# klinik_app.py  (ASCII-safe + Option B + fixed buttons)
+# klinik_app.py  (ASCII-safe, updated theme, humanized copy, post-detect explainer)
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
@@ -16,11 +16,14 @@ st.set_page_config(
     },
 )
 
-# ---------- Color Palette: Natural Wellness (Option B) ----------
-PRIMARY = "#2C7A7B"     # muted teal (buttons, headers)
-ACCENT = "#68D391"      # soft green (badges, highlights)
-BACKGROUND = "#F7FAFC"  # warm off-white background
-TEXT_DARK = "#1A202C"   # slate gray
+# ---------- Color Palette (requested) ----------
+# Background:  #98c1d9
+# Buttons:     #e0fbfc
+# Text:        #293241
+PRIMARY = "#293241"     # used for headings and text emphasis
+ACCENT = "#e0fbfc"      # buttons
+BACKGROUND = "#98c1d9"  # page background
+TEXT_DARK = "#293241"   # all text
 
 # ---------- Styles ----------
 CSS = f"""
@@ -31,39 +34,39 @@ CSS = f"""
   color: {TEXT_DARK};
   font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }}
-h1, h2, h3, h4, h5, h6 {{ color: {PRIMARY}; }}
-a {{ color: {PRIMARY}; }}
+h1, h2, h3, h4, h5, h6 {{ color: {TEXT_DARK}; }}
+a {{ color: {TEXT_DARK}; text-decoration: underline; }}
 
 .badge {{
   display:inline-block; padding:.25rem .6rem; border-radius:9999px;
-  background:{ACCENT}33; color:{PRIMARY}; font-weight:600; font-size:.8rem;
+  background: rgba(224, 251, 252, 0.6); color:{TEXT_DARK}; font-weight:600; font-size:.8rem;
 }}
 .codepill {{
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background:#00000010; padding:.15rem .45rem; border-radius:.4rem;
+  background:#00000010; padding:.15rem .45rem; border-radius:.4rem; color:{TEXT_DARK};
 }}
-hr.soft {{ border:none; height:1px; background:#CBD5E0; margin:1.1rem 0; }}
+hr.soft {{ border:none; height:1px; background:#e6edf3; margin:1.1rem 0; }}
 footer {{ visibility:hidden; }}
 
 .hero {{ text-align:center; padding:2.2rem 1rem 1.2rem 1rem; }}
 .hero h1 {{ margin:0; font-size:2.2rem; }}
 .hero p {{ margin:.5rem 0 0 0; color:{TEXT_DARK}; }}
 
-.card {{ border:1px solid #E2E8F0; border-radius:1rem; padding:1rem; background:white; }}
+.card {{ border:1px solid #e6edf3; border-radius:1rem; padding:1rem; background:white; color:{TEXT_DARK}; }}
 
-/* Force button style (works regardless of Streamlit theme) */
+/* Buttons - keep text visible at all times */
 .stButton > button {{
-  background: {PRIMARY} !important;
-  color: #FFFFFF !important;
-  border: none !important;
+  background: {ACCENT} !important;
+  color: {TEXT_DARK} !important;
+  border: 1px solid #c5e9ee !important;
   border-radius: 10px !important;
   padding: 0.6rem 1rem !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   box-shadow: 0 1px 2px rgba(16,24,40,0.05) !important;
   cursor: pointer !important;
   opacity: 1 !important;
 }}
-.stButton > button:hover {{ filter: brightness(0.95) !important; }}
+.stButton > button:hover {{ filter: brightness(0.96) !important; }}
 .stButton > button:disabled {{
   opacity: 0.6 !important;
   cursor: not-allowed !important;
@@ -102,7 +105,7 @@ def hex_chip(rgb: Tuple[int, int, int]) -> str:
 <div style="display:flex;gap:.6rem;align-items:center;">
   <div style="width:22px;height:22px;border-radius:.4rem;border:1px solid #00000022;background:{hx};"></div>
   <code class="codepill">{hx}</code>
-  <span style="color:#4A5568;font-size:.9rem;">(RGB {r}, {g}, {b})</span>
+  <span style="color:{TEXT_DARK};font-size:.9rem;">(RGB {r}, {g}, {b})</span>
 </div>
 """
 
@@ -167,29 +170,29 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
     guidance = {
         "clear": ("Often normal hydration/irritation.",
                   ["Usually benign if you feel well.",
-                   "Hydrate and monitor.",
+                   "Hydrate and keep an eye on changes.",
                    "Seek care if symptoms persist or worsen."]),
-        "white": ("Congestion common.",
-                  ["Hydrate, humidify air.",
-                   "If more than 10 days or worsening, see a clinician."]),
-        "yellow": ("Inflammation, possibly infection.",
-                  ["Rest, hydrate.",
-                   "See doctor if fever or more than 10 days."]),
-        "green": ("Inflammation or infection.",
-                  ["Rest, avoid self-medicating.",
-                   "Seek care if fever or shortness of breath."]),
-        "brown": ("Old blood or irritants.",
-                  ["Avoid smoke/dust.",
-                   "See doctor if recurring."]),
-        "red": ("Fresh blood.",
-                ["Small streaks can be irritation.",
-                 "Heavy or recurrent bleeding: urgent care."]),
-        "black": ("Dark mucus (pollution/smoke/blood).",
-                  ["Avoid irritants.",
-                  "Persistent? Get medical help."]),
-        "uncertain": ("Unclear result.",
-                      ["Re-check under good light.",
-                       "Focus on symptoms, not just color."]),
+        "white": ("Common with congestion or drier mucus.",
+                  ["Drink water, humidify air.",
+                   "If more than ~10 days or worsening, check in with a clinician."]),
+        "yellow": ("Inflammation; immune system is active.",
+                  ["Rest and hydrate.",
+                   "Color alone is not infection; see a clinician if fever or >10 days."]),
+        "green": ("Stronger inflammation; can be infection.",
+                  ["Hydrate; saline or gentle rinses can help.",
+                   "If lasting beyond ~10 days or with fever, seek care."]),
+        "brown": ("Old/dry blood or inhaled particles.",
+                  ["Avoid smoke/dust; use saline.",
+                   "If frequent or heavy, see a clinician."]),
+        "red": ("Fresh blood in mucus.",
+                ["Small streaks can be from irritation.",
+                 "Heavy or recurrent bleeding needs prompt care."]),
+        "black": ("Dark from smoke/pollution or oxidized blood.",
+                  ["Avoid irritants; use saline.",
+                   "If persistent without a clear cause, seek care."]),
+        "uncertain": ("Hard to read; lighting/background can mislead.",
+                      ["Retake photo in neutral light on white background.",
+                       "Track symptoms over time, not just color."]),
     }
     summary, actions = guidance.get(key, guidance["uncertain"])
 
@@ -206,6 +209,147 @@ def classify_color_with_trace(rgb: Tuple[int, int, int]) -> Dict[str, Any]:
         "picked_rule": picked_rule,
     }
 
+# ---------- Human-friendly explainers to show AFTER detection ----------
+EXPLAINERS: Dict[str, str] = {
+    "clear": """
+### Clear Mucus
+**Color snapshot.** Transparent and watery; the most common, usually healthy.
+
+**The science.** Mucus is mostly water plus mucins and salts. Clear means that water-to-mucin balance is good. Tiny hairlike cilia move it along to trap dust and microbes and keep things moist.
+
+**Possible causes**
+- Normal hydration
+- Mild allergies or light dust/pollen
+- Early cold stage (before mucus thickens)
+- Temperature or humidity changes
+
+**What to do**
+- Drink water
+- Use a humidifier if air is dry
+- Avoid smoke, strong perfumes
+- No real concern unless it changes color, thickens, or new symptoms show up
+""",
+    "white": """
+### White or Gray Mucus
+**Color snapshot.** Cloudy, milky, and thicker than clear.
+
+**The science.** As mucus loses water, mucins concentrate and look cloudy. Slower airflow with congestion traps more cells and proteins, adding to the pale look.
+
+**Possible causes**
+- Mild nasal/sinus congestion
+- Early cold or minor irritation
+- Dehydration or dry air
+- Temporary airway inflammation
+
+**What to do**
+- Hydrate
+- Saline spray or humidifier
+- Warm showers/steam can help
+- Usually clears on its own; check in if it lingers or worsens
+""",
+    "yellow": """
+### Yellow Mucus
+**Color snapshot.** Thicker with a pale to deeper yellow tint.
+
+**The science.** When your immune system engages, white blood cells (like neutrophils) release enzymes and iron-containing proteins that tint the mucus yellow. It signals activity, not automatically infection.
+
+**Possible causes**
+- Mild viral cold
+- Allergic flare with inflammation
+- Healing stage after a recent bug
+- Daytime thickening from low hydration
+
+**What to do**
+- Rest and fluids
+- Steam or humid air to thin it
+- Avoid unnecessary antibiotics (color alone is not proof)
+- If fever or symptoms last >~10 days, get medical advice
+""",
+    "green": """
+### Green Mucus
+**Color snapshot.** Dense, vividly green; sometimes olive-toned.
+
+**The science.** More neutrophils = more myeloperoxidase (a green iron enzyme), which deepens the color. Often linked with infection, but color mainly reflects inflammation level.
+
+**Possible causes**
+- Ongoing sinus inflammation or infection
+- Allergic irritation lasting several days
+- Pollution, smoke, or dusty air
+
+**What to do**
+- Hydrate, rest
+- Gentle saline rinses
+- Avoid polluted air or smoking
+- If it sticks around >~10 days or comes with fever, seek care
+""",
+    "brown": """
+### Brown (or Rust) Mucus
+**Color snapshot.** Reddish-brown; may look dry or grainy.
+
+**The science.** Usually oxidized hemoglobin (old or dried blood) or inhaled particles. As blood ages, iron darkens to brown.
+
+**Possible causes**
+- Minor nose irritation/dryness with tiny capillary breaks
+- Smoke or dust exposure
+- Frequent blowing or nose picking
+- Post-nasal drip mixing with old blood
+
+**What to do**
+- Avoid irritants and dry air
+- Use saline to keep passages moist
+- If frequent or heavy, check with a clinician
+""",
+    "red": """
+### Red or Pink Mucus
+**Color snapshot.** Fresh blood streaks or pinkish tones.
+
+**The science.** Delicate nasal capillaries can rupture; small amounts of fresh blood mix with mucus before clotting.
+
+**Possible causes**
+- Dry air or dehydration
+- Forceful blowing or frequent wiping
+- Irritation from allergens or infection
+
+**What to do**
+- Go easy when clearing the nose
+- Humidifier + saline spray
+- If bleeding is frequent, heavy, or with other symptoms, seek medical care
+""",
+    "black": """
+### Black or Very Dark Mucus
+**Color snapshot.** Dark gray to black; can look thick or speckled.
+
+**The science.** Often from particles (smoke, soot, dust) sticking to mucus. Less commonly, oxidized blood deep in the sinuses.
+
+**Possible causes**
+- Pollution or smoke exposure
+- Dusty environments (construction, fireplaces)
+- Chronic nasal dryness or irritation
+- Rarely, certain fungal infections
+
+**What to do**
+- Get to clean, humid air
+- Sterile saline rinses
+- Avoid smoking and polluted spaces
+- If persistent without a clear cause, see a clinician
+""",
+    "uncertain": """
+### Uncertain or Mixed Color
+**Color snapshot.** Hard to classify; mixed tones or odd lighting.
+
+**The science.** Lighting, camera filters, and tissue color can skew hue. Mixed colors can happen as your immune response shifts or hydration changes.
+
+**Possible causes**
+- Lighting or camera white balance
+- Transition phase of an illness or recovery
+- Varying hydration; mild irritation
+
+**What to do**
+- Retake the photo in natural light on plain white
+- Focus more on symptoms and trend over time than a single color
+"""
+}
+
 # ---------- Navigation ----------
 def nav_to(route: str) -> None:
     st.session_state["route"] = route
@@ -217,7 +361,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Explore simple wellness modules. Start with the <b>Mucus Color</b> demo to get a broad color estimate and general guidance.</p>
+  <p>Explore simple, educational wellness modules. Start with the <b>Mucus Color</b> demo to see a rough color estimate and plain-language guidance.</p>
   <div style="margin-top:1rem;">
     <span class="badge">Educational only — Not a medical device</span>
   </div>
@@ -230,16 +374,16 @@ def page_home() -> None:
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.subheader("What to expect")
     st.markdown(
-        "- No diagnosis. This provides general, safe information only.\n"
-        "- Privacy. Images are processed locally in this session.\n"
-        "- Clarity. We show a transparent breakdown of how the color category was chosen."
+        "- No diagnosis. General information only.\n"
+        "- Privacy. Images are processed in this session.\n"
+        "- Transparency. We show how the color guess was chosen."
     )
 
 def page_modules() -> None:
     st.title("Modules")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     st.markdown("#### Mucus Color")
-    st.write("Learn how color estimation works and what the results mean, then try the detector.")
+    st.write("Learn how color estimation works, what the results mean, then try the detector.")
     if st.button("Open Mucus Module ->", use_container_width=True):
         nav_to("mucus_info")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
@@ -248,19 +392,19 @@ def page_modules() -> None:
 
 def page_mucus_info() -> None:
     st.title("Mucus Color — Overview")
-    st.caption("Read a quick primer, then proceed to the detector.")
+    st.caption("Read this first, then run the detector.")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
-    st.subheader("How this works")
+    st.subheader("How the detector works")
     st.write(
-        "We evaluate throat mucus color using HSV (hue, saturation, value) and compare to simple thresholds. "
-        "Use good lighting and a white background for best results."
+        "We look at HSV color (hue, saturation, value) from a center crop and compare it to simple thresholds. "
+        "For best results, use neutral lighting and a plain white background."
     )
     st.markdown(
-        "**Best way to proceed:**\n"
-        "- Use a plain white tissue or background.\n"
-        "- Prefer natural/neutral light; avoid colored lights or filters.\n"
-        "- Keep the camera in focus."
+        "**Tips**\n"
+        "- Use a white tissue or background.\n"
+        "- Prefer natural/neutral light; avoid colored bulbs/filters.\n"
+        "- Keep the camera steady and in focus."
     )
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
@@ -274,8 +418,8 @@ def page_mucus_info() -> None:
 
 def page_mucus_detect() -> None:
     st.title("Mucus Color Detector (Demo)")
-    st.caption("Educational only • Not a medical device • If unwell, seek a clinician.")
-    st.write("Upload a photo on white tissue under natural/neutral light. Avoid filters and colored backgrounds.")
+    st.caption("Educational only • Not a medical device • If you feel unwell, talk to a clinician.")
+    st.write("Upload a photo on white tissue in natural/neutral light. Avoid filters and colored backgrounds.")
 
     uploaded = st.file_uploader(
         "Upload a photo (jpg, jpeg, png, webp)", type=["jpg", "jpeg", "png", "webp"]
@@ -287,7 +431,7 @@ def page_mucus_detect() -> None:
 
         with st.expander("Advanced (optional)"):
             robust = st.checkbox(
-                "Robust averaging (median pool center crop)",
+                "Robust averaging (median of a center crop)",
                 value=True,
                 help="Helps reduce bias from highlights/shadows.",
             )
@@ -335,6 +479,12 @@ def page_mucus_detect() -> None:
         st.markdown("**What you can do (general):**")
         for a in res["actions"]:
             st.markdown(f"- {a}")
+
+        # ----- Post-detection explainer (full section) -----
+        key = res.get("key", "uncertain")
+        explainer_md = EXPLAINERS.get(key, EXPLAINERS["uncertain"])
+        st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+        st.markdown(explainer_md)
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
