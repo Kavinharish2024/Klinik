@@ -1,9 +1,10 @@
 # klinik_app.py
+
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
-import matplotlib.colors as mcolors
-from typing import Tuple, Dict
+import colorsys
+from typing import Tuple, Dict, Any
 
 # ---------- App Setup ----------
 st.set_page_config(
@@ -12,19 +13,17 @@ st.set_page_config(
     layout="centered",
     menu_items={
         "Get Help": "https://www.cdc.gov/",
-        "About": (
-            "Klinik is an educational tool that helps users reflect on mucus color "
-            "and symptom patterns. It does NOT provide medical diagnosis or treatment."
-        ),
+        "About": "Klinik helps users understand mucus color and sinus patterns.",
     },
 )
 
-# ---------- Color Palette / Styles ----------
-PRIMARY = "#293241"
-ACCENT = "#e0fbfc"
-BACKGROUND = "#98c1d9"
-TEXT_DARK = "#293241"
+# ---------- Color Palette ----------
+PRIMARY = "#293241"     # headings/text
+ACCENT = "#e0fbfc"      # buttons
+BACKGROUND = "#98c1d9"  # background
+TEXT_DARK = "#293241"   # all text
 
+# ---------- Styles ----------
 CSS = f"""
 <style>
 .stApp {{
@@ -67,14 +66,12 @@ st.write(CSS, unsafe_allow_html=True)
 def init_state() -> None:
     if "route" not in st.session_state:
         st.session_state["route"] = "home"
-    if "last_report" not in st.session_state:
-        st.session_state["last_report"] = None
-    if "last_color" not in st.session_state:
-        st.session_state["last_color"] = None
+    if "mucus_report" not in st.session_state:
+        st.session_state["mucus_report"] = ""
 
 init_state()
 
-# ---------- FULL EXPLAINERS (your exact breakdown) ----------
+# ---------- Full Detailed Explainers ----------
 EXPLAINERS_FULL: Dict[str, str] = {
     "clear": """
 ### Clear Mucus
@@ -82,8 +79,8 @@ EXPLAINERS_FULL: Dict[str, str] = {
 The image provided most likely shows a clear mucus. Clear mucus is transparent and watery. It’s the most common and typically the healthiest type of mucus.
 
 **The Science**  
-Mucus is made of water, mucins, and salts. Clear mucus means your mucin-to-water ratio is balanced, allowing it to trap dust and microbes while keeping your nasal passages moist.
-Cilia, a hairlike structure in your cells, move this mucus and helps clean + protect the respiratory tract.
+Mucus is made of water, mucins, and salts. Clear mucus means your mucin-to-water ratio is balanced, allowing it to trap dust and microbes while keeping your nasal passages moist.  
+Cilia, a hairlike structure in your cells, move this mucus and help clean + protect the respiratory tract.
 
 **Possible Causes**  
 - When you’re well-hydrated  
@@ -140,10 +137,10 @@ When the immune system activates, white blood cells (neutrophils) move into mucu
     "green": """
 ### Green Mucus
 **Color Description**  
-The image provided most likely shows a green mucus. Green mucus is dense and brightly colored, dark green or almost an olive.
+The image provided most likely shows a green mucus. Green mucus is dense and brightly colored, dark green or almost olive.
 
 **The Science**  
-A stronger immune response introduces even more neutrophils. Their enzymes, especially myeloperoxidase (a green-tinted iron enzyme), give mucus this color. While often linked to infection, green mucus mainly shows inflammation, and not the invasion of bacteria.
+A stronger immune response introduces even more neutrophils. Their enzymes, especially myeloperoxidase (a green-tinted iron enzyme), give mucus this color. While often linked to infection, green mucus mainly shows inflammation, not necessarily bacterial invasion.
 
 **Possible Causes**  
 - Ongoing sinus inflammation or infection  
@@ -181,9 +178,7 @@ The color usually comes from oxidized hemoglobin — old or dried blood — or f
 Reddish or pink mucus contains visible streaks or spots of fresh blood.
 
 **The Science**  
-This occurs when tiny blood vessels (capillaries) in the nasal passages rupture.
-The blood mixes with mucus before clotting, resulting in the reddish tint.
-It’s usually benign if minimal, since nasal membranes are delicate and vascular.
+This occurs when tiny blood vessels (capillaries) in the nasal passages rupture. The blood mixes with mucus before clotting, resulting in the reddish tint. It’s usually benign if minimal, since nasal membranes are delicate and vascular.
 
 **Possible Causes**  
 - Dry air or dehydration  
@@ -202,14 +197,13 @@ It’s usually benign if minimal, since nasal membranes are delicate and vascula
 Black or gray-black mucus looks dark and often thick, sometimes speckled.
 
 **The Science**  
-This appearance usually results from inhaled particles, such as smoke, soot, or dust, sticking to mucus. Less commonly, dark mucus can occur if old blood oxidizes deep in the sinuses.
-The darkness comes from carbon or iron-based pigments trapped in mucins.
+This appearance usually results from inhaled particles, such as smoke, soot, or dust, sticking to mucus. Less commonly, dark mucus can occur if old blood oxidizes deep in the sinuses. The darkness comes from carbon or iron-based pigments trapped in mucins.
 
 **Possible Causes**  
 - Pollution or smoke exposure  
 - Dusty environments (construction, fireplaces)  
 - Chronic nasal dryness or irritation  
-- Rarely, fungal infections 
+- Rarely, fungal infections  
 
 **What to Do**  
 - Move to clean, humid air  
@@ -223,8 +217,7 @@ The darkness comes from carbon or iron-based pigments trapped in mucins.
 The image provided is unable to be classified as a certain mucus color. Sometimes mucus shows mixed tones or unclear color.
 
 **The Science**  
-Lighting, camera filters, and tissue color can alter the perceived hue.
-Mixtures also happen when mucus is transitioning between immune stages or hydration levels. For example, one’s mucus may be yellow as it thickens, but white when it dries.
+Lighting, camera filters, and tissue color can alter the perceived hue. Mixtures also happen when mucus is transitioning between immune stages or hydration levels. For example, one’s mucus may be yellow as it thickens, but white when it dries.
 
 **Possible Causes**  
 - Lighting issues or camera tint  
@@ -238,69 +231,231 @@ Mixtures also happen when mucus is transitioning between immune stages or hydrat
 """
 }
 
-# ---------- Color Engine (dominant HSV + prototypes) ----------
-def dominant_hsv(pil_image: Image.Image) -> Tuple[float, float, float]:
-    """
-    Returns dominant HSV of the mucus region as (h_deg, s, v).
-    h_deg in [0, 360), s,v in [0,1].
-    """
-    img = ImageOps.exif_transpose(pil_image).convert("RGB").resize((256, 256))
-    arr = np.asarray(img, dtype=np.float32) / 255.0  # (H,W,3)
+# ---------- Image / Color Utils ----------
 
-    hsv = mcolors.rgb_to_hsv(arr)
-    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+def preprocess_center_crop(img: Image.Image, size: int = 192) -> np.ndarray:
+    """
+    Resize to a square and take a central crop as numpy array (H,W,3) uint8.
+    """
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    img = img.resize((size, size))
+    arr = np.asarray(img, dtype=np.uint8)
+    # central crop (keep same size here, but function kept for clarity)
+    return arr
 
-    # Ignore background: very bright & low saturation = likely tissue
-    mask = (s > 0.10) & (v < 0.98)
+
+def rgb_array_to_hsv_array(arr: np.ndarray) -> np.ndarray:
+    """
+    Convert RGB uint8 array (H,W,3) in [0,255] to HSV float array (H,W,3) in [0,1].
+    Uses colorsys for each pixel (no matplotlib).
+    """
+    h, w, _ = arr.shape
+    hsv = np.zeros_like(arr, dtype=np.float32)
+    for i in range(h):
+        for j in range(w):
+            r, g, b = arr[i, j] / 255.0
+            hh, ss, vv = colorsys.rgb_to_hsv(float(r), float(g), float(b))
+            hsv[i, j, 0] = hh
+            hsv[i, j, 1] = ss
+            hsv[i, j, 2] = vv
+    return hsv
+
+
+def classify_pixel(h: float, s: float, v: float) -> str:
+    """
+    Classify a single pixel's HSV (0–1 each) into a mucus color label.
+    """
+    hue_deg = h * 360.0
+
+    # Black / very dark
+    if v < 0.16:
+        return "black"
+
+    # Very low saturation: clear / white / uncertain
+    if s < 0.07 and v > 0.80:
+        return "clear"
+    if s < 0.20 and v > 0.55:
+        return "white"
+
+    # Brown: dark-ish, warm hue
+    if v < 0.55 and s >= 0.25 and 10.0 < hue_deg < 50.0:
+        return "brown"
+
+    # Yellow: 30–75 deg, decent saturation & brightness
+    if 30.0 <= hue_deg <= 75.0 and s >= 0.18 and v >= 0.40:
+        return "yellow"
+
+    # Green: 75–170 deg, moderate saturation
+    if 75.0 < hue_deg <= 170.0 and s >= 0.20 and v >= 0.25:
+        return "green"
+
+    # Red: 0–20 or 340–360, decent saturation/brightness
+    if (0.0 <= hue_deg <= 20.0 or 340.0 <= hue_deg <= 360.0) and s >= 0.20 and v > 0.25:
+        return "red"
+
+    return "uncertain"
+
+
+def analyze_mucus_image(img: Image.Image) -> Dict[str, Any]:
+    """
+    Do a more robust analysis:
+    - Convert central crop to HSV
+    - Ignore low-saturation/very-bright background (tissue)
+    - Classify each remaining pixel
+    - Return dominant color + distribution + basic stats
+    """
+    arr = preprocess_center_crop(img)           # (H,W,3) uint8
+    hsv = rgb_array_to_hsv_array(arr)          # (H,W,3) float in [0,1]
+
+    h = hsv[..., 0]
+    s = hsv[..., 1]
+    v = hsv[..., 2]
+
+    # Mask: likely mucus pixels (not pure white tissue)
+    mask = (s > 0.12) & (v > 0.15)  # tuneable
+
     if not np.any(mask):
+        # Fallback: use all pixels if mask catches nothing
         mask = np.ones_like(s, dtype=bool)
 
-    h_sel = h[mask]
-    s_sel = s[mask]
-    v_sel = v[mask]
+    labels = {}
+    total = int(mask.sum())
 
-    h_med = float(np.median(h_sel) * 360.0)
-    s_med = float(np.median(s_sel))
-    v_med = float(np.median(v_sel))
+    for hi, si, vi in zip(h[mask], s[mask], v[mask]):
+        lab = classify_pixel(hi, si, vi)
+        labels[lab] = labels.get(lab, 0) + 1
 
-    return h_med, s_med, v_med
+    # Normalize to fractions
+    fractions = {k: v_ / total for k, v_ in labels.items()}
+    if not fractions:
+        return {
+            "primary": "uncertain",
+            "fractions": {},
+            "n_pixels": total,
+            "median_hue_deg": float(np.median(h[mask]) * 360.0),
+            "median_sat": float(np.median(s[mask])),
+            "median_val": float(np.median(v[mask])),
+        }
+
+    # Pick dominant non-uncertain color
+    sorted_colors = sorted(fractions.items(), key=lambda kv: kv[1], reverse=True)
+    primary, primary_frac = sorted_colors[0]
+
+    # If top color is uncertain or not dominant enough, mark as uncertain
+    if primary == "uncertain" or primary_frac < 0.55:
+        primary = "uncertain"
+
+    median_h = float(np.median(h[mask]) * 360.0)
+    median_s = float(np.median(s[mask]))
+    median_v = float(np.median(v[mask]))
+
+    return {
+        "primary": primary,
+        "fractions": fractions,
+        "n_pixels": total,
+        "median_hue_deg": median_h,
+        "median_sat": median_s,
+        "median_val": median_v,
+    }
 
 
-PROTOTYPES = {
-    # hue (deg), sat, val – tweakable
-    "clear":  (0.0,   0.02, 0.97),
-    "white":  (0.0,   0.10, 0.85),
-    "yellow": (50.0,  0.70, 0.80),
-    "green":  (110.0, 0.70, 0.60),
-    "brown":  (30.0,  0.60, 0.45),
-    "red":    (5.0,   0.80, 0.70),
-    "black":  (0.0,   0.05, 0.10),
-}
-
-def _circular_hue_distance(h1: float, h2: float) -> float:
-    diff = abs(h1 - h2)
-    diff = min(diff, 360.0 - diff)
-    return diff / 180.0  # normalize to ~[0,1]
-
-def classify_mucus_color(h_deg: float, s: float, v: float) -> Tuple[str, float]:
+def build_report(
+    analysis: Dict[str, Any],
+    symptoms: Dict[str, Any],
+) -> str:
     """
-    Returns (color_label, distance_score) by nearest prototype in HSV space.
-    Lower distance_score = closer match.
+    Combine:
+    - dominant color from image
+    - distribution stats
+    - symptom questionnaire
+    into one markdown report with your detailed breakdown.
     """
-    best_label = None
-    best_score = float("inf")
+    color_key = analysis["primary"]
+    base_explainer = EXPLAINERS_FULL.get(color_key, EXPLAINERS_FULL["uncertain"])
 
-    for label, (ph, ps, pv) in PROTOTYPES.items():
-        dh = _circular_hue_distance(h_deg, ph)
-        ds = abs(s - ps)
-        dv = abs(v - pv)
-        score = 2.0 * dh + ds + dv  # hue weighted more
+    frac_text_lines = []
+    for k, frac in sorted(analysis["fractions"].items(), key=lambda kv: kv[1], reverse=True):
+        frac_text_lines.append(f"- **{k.capitalize()}**: {frac*100:.1f}% of detected mucus pixels")
 
-        if score < best_score:
-            best_score = score
-            best_label = label
+    frac_block = "\n".join(frac_text_lines) if frac_text_lines else "Not enough colored pixels detected."
 
-    return best_label, best_score
+    stats_block = (
+        f"**Image Analysis Summary**  \n"
+        f"- Pixels analyzed (approx.): **{analysis['n_pixels']}**  \n"
+        f"- Median hue: **{analysis['median_hue_deg']:.1f}°**  \n"
+        f"- Median saturation: **{analysis['median_sat']:.2f}**  \n"
+        f"- Median brightness (value): **{analysis['median_val']:.2f}**  \n\n"
+        f"**Estimated Color Distribution**  \n{frac_block}\n"
+    )
+
+    # Symptoms section
+    fever = symptoms.get("fever", "No")
+    congestion = symptoms.get("congestion", "No")
+    allergy = symptoms.get("allergy", "No")
+    recent_cold = symptoms.get("recent_cold", "No")
+
+    symptoms_block = (
+        f"**Your Reported Symptoms**  \n"
+        f"- Fever: **{fever}**  \n"
+        f"- Nasal congestion: **{congestion}**  \n"
+        f"- Allergy symptoms: **{allergy}**  \n"
+        f"- Recent cold (last few days): **{recent_cold}**  \n"
+    )
+
+    # Simple interpretation tying symptoms + color together
+    extra_notes = []
+
+    if color_key in ["yellow", "green"]:
+        if fever == "Yes" or congestion == "Yes":
+            extra_notes.append(
+                "- The combination of **yellow/green mucus** plus **fever or congestion** suggests an active immune response in your upper airways."
+            )
+        else:
+            extra_notes.append(
+                "- Yellow/green mucus without strong symptoms can appear during **mild viral infections, allergies, or healing**."
+            )
+    elif color_key == "clear":
+        if congestion == "Yes":
+            extra_notes.append(
+                "- Clear mucus with congestion may reflect **early-stage irritation, allergies, or the beginning of a cold**."
+            )
+        else:
+            extra_notes.append(
+                "- Clear mucus with few symptoms is usually consistent with **healthy, well-hydrated airways**."
+            )
+    elif color_key == "white":
+        extra_notes.append(
+            "- White mucus and congestion often point to **mild swelling** or **slower mucus flow**, especially in dry environments."
+        )
+    elif color_key == "brown":
+        extra_notes.append(
+            "- Brown mucus plus any dryness/irritation could indicate **old blood** or **irritant exposure** like smoke or dust."
+        )
+    elif color_key == "red":
+        extra_notes.append(
+            "- Red or pink streaks usually reflect **tiny broken blood vessels**, especially if you blow or wipe your nose often."
+        )
+    elif color_key == "black":
+        extra_notes.append(
+            "- Very dark mucus is often linked to **smoke, dust, or pollution**. If you’re not exposed to these, consider talking to a clinician."
+        )
+    else:
+        extra_notes.append(
+            "- The system could not confidently pick a single color. Lighting, camera tint, or a mix of mucus types may be involved."
+        )
+
+    extra_block = "**How the App Interprets This Combination**  \n" + "\n".join(extra_notes) + "\n"
+
+    return (
+        f"**Detected Dominant Color (image-based):** **{color_key.capitalize()}**  \n\n"
+        + stats_block
+        + "\n"
+        + symptoms_block
+        + "\n"
+        + extra_block
+        + "\n---\n"
+        + base_explainer
+    )
 
 # ---------- Navigation ----------
 def nav_to(route: str) -> None:
@@ -313,7 +468,7 @@ def page_home() -> None:
         """
 <div class="hero">
   <h1>Klinik</h1>
-  <p>Clear your throat mucus onto a white surface, take a photo, and upload it. Klinik estimates the mucus color and shows a detailed, science-based explanation plus a symptom summary. This is for education only, not diagnosis.</p>
+  <p>Try the Klinik Mucus Color Detector. Clear your throat mucus onto a white surface like a tissue or sink, take a picture, and upload it to see what the color may mean for your respiratory health.</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -322,134 +477,72 @@ def page_home() -> None:
         nav_to("checkups")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
+
 def page_checkups() -> None:
     st.title("Checkups")
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
 
     st.subheader("Mucus Color")
-    st.write(
-        "Find out what the color of your throat mucus may suggest. "
-        "Upload an image and answer a few quick questions."
-    )
+    st.write("Find out what the color of your throat mucus means by uploading an image.")
     if st.button("Open Mucus Checkup →", use_container_width=True):
-        nav_to("mucus_detect")
+        nav_to("mucus_info")
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("Back to Home", use_container_width=True):
         nav_to("home")
 
-def build_symptom_summary(answers: Dict[str, str]) -> str:
-    lines = []
-    lines.append("### Symptom Snapshot (self-reported)\n")
-    lines.append(f"- **Duration of symptoms:** {answers.get('duration', 'Not specified')}")
-    lines.append(f"- **Fever:** {answers.get('fever', 'Not specified')}")
-    lines.append(f"- **Nasal congestion:** {answers.get('congestion', 'Not specified')}")
-    lines.append(f"- **Cough:** {answers.get('cough', 'Not specified')}")
-    lines.append(f"- **Sore throat:** {answers.get('sore_throat', 'Not specified')}")
-    other = answers.get("other", "").strip()
-    if other:
-        lines.append(f"- **Other symptoms/notes:** {other}")
-    lines.append(
-        "\n_This information is self-reported and not reviewed by a clinician. "
-        "Klinik does not diagnose or rule out any condition._"
+
+def page_mucus_info() -> None:
+    st.title("How It Works")
+    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+    st.write(
+        "Klinik analyzes the color of your mucus using hundreds of pixels from the central region of your photo. "
+        "It converts each pixel from RGB to HSV (hue, saturation, value) to estimate the underlying color tone, while ignoring most of the white tissue background. "
+        "Then, it estimates what fraction of the mucus area matches each color category (clear, white, yellow, green, brown, red, black) and picks the dominant one. "
+        "Finally, it combines this with a short symptom questionnaire to create a detailed, science-based explanation."
     )
-    return "\n".join(lines)
+    st.write(
+        "For best results, use a **white background**, avoid heavy filters, and take the photo in **natural light**."
+    )
+    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+
+    if st.button("Proceed to Checkup", use_container_width=True):
+        nav_to("mucus_detect")
+    if st.button("Back to Checkups", use_container_width=True):
+        nav_to("checkups")
+
 
 def page_mucus_detect() -> None:
     st.title("Mucus Color Checkup")
-    st.write(
-        "Upload a photo of mucus on a **white background** in **natural or neutral lighting**. "
-        "Then answer a few questions so the report can reflect your context."
-    )
+    st.write("Upload a photo of mucus on a **white background** under **natural light** for the most accurate analysis.")
+    uploaded = st.file_uploader("Upload a photo", type=["jpg", "jpeg", "png", "webp"])
 
-    uploaded = st.file_uploader(
-        "Upload a mucus photo", type=["jpg", "jpeg", "png", "webp"]
-    )
+    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+    st.subheader("Quick Symptom Check (optional but recommended)")
 
-    st.markdown("#### Symptom Questions (optional but recommended)")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        duration = st.selectbox(
-            "How long have you had symptoms?",
-            [
-                "No symptoms",
-                "< 1 day",
-                "1–3 days",
-                "4–7 days",
-                "8–14 days",
-                "> 14 days",
-            ],
-        )
-        fever = st.selectbox("Fever?", ["No", "Yes", "Not sure"])
-        congestion = st.selectbox(
-            "Nasal congestion?", ["No", "Mild", "Moderate", "Severe"]
-        )
-
-    with col2:
-        cough = st.selectbox("Cough?", ["No", "Mild", "Frequent", "Severe"])
-        sore_throat = st.selectbox("Sore throat?", ["No", "Mild", "Moderate", "Severe"])
-        other = st.text_input("Other symptoms or notes (optional)")
-
-    answers = {
-        "duration": duration,
-        "fever": fever,
-        "congestion": congestion,
-        "cough": cough,
-        "sore_throat": sore_throat,
-        "other": other,
-    }
+    symptoms: Dict[str, Any] = {}
+    symptoms["fever"] = st.radio("Do you currently have a fever?", ["No", "Yes"])
+    symptoms["congestion"] = st.radio("Do you feel nasal congestion?", ["No", "Yes"])
+    symptoms["allergy"] = st.radio("Do you have allergy symptoms (itchy eyes, sneezing, etc.)?", ["No", "Yes"])
+    symptoms["recent_cold"] = st.radio("Have you had a cold in the last few days?", ["No", "Yes"])
 
     if uploaded:
         img = Image.open(uploaded)
         st.image(img, caption="Uploaded image", use_container_width=True)
 
         if st.button("Analyze", use_container_width=True):
-            # 1. Extract dominant HSV for mucus region
-            h_deg, s, v = dominant_hsv(img)
+            analysis = analyze_mucus_image(img)
+            report = build_report(analysis, symptoms)
+            st.session_state["mucus_report"] = report
 
-            # 2. Nearest-prototype classification
-            base_label, distance = classify_mucus_color(h_deg, s, v)
-
-            # 3. Simple heuristic tweak for display label
-            display_label = base_label
-            has_strong_symptoms = (
-                fever == "Yes"
-                or congestion in ["Moderate", "Severe"]
-                or cough in ["Frequent", "Severe"]
-                or sore_throat in ["Moderate", "Severe"]
-            )
-
-            if base_label in ["yellow", "green"] and has_strong_symptoms:
-                display_label = f"{base_label} (immune response likely active)"
-            elif base_label in ["clear", "white"] and has_strong_symptoms:
-                display_label = f"{base_label} (color may lag behind symptoms)"
-
-            # Save to session in case you want to use later
-            st.session_state["last_color"] = base_label
-
-            # 4. Result header
-            st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-            st.markdown("### Analysis Summary")
-            st.markdown(
-                f"- **Estimated mucus color:** `{display_label}`  \n"
-                f"- **Internal match score:** `{distance:.3f}` (lower = closer match)  \n"
-                f"- **Dominant HSV (approx):** `{h_deg:.1f}° hue, {s:.2f} sat, {v:.2f} val`"
-            )
-            st.info(
-                "This estimate is based on image color patterns and is meant for education only. "
-                "It is not a medical diagnosis and should not replace professional care."
-            )
-
-            # 5. Color breakdown (your exact text)
-            st.markdown(EXPLAINERS_FULL.get(base_label, EXPLAINERS_FULL["uncertain"]))
-
-            # 6. Symptom snapshot using questionnaire
-            st.markdown(build_symptom_summary(answers))
+    if st.session_state.get("mucus_report"):
+        st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+        st.markdown(st.session_state["mucus_report"])
 
     st.markdown("<hr class='soft' />", unsafe_allow_html=True)
     if st.button("Back to Checkups", use_container_width=True):
         nav_to("checkups")
+
 
 # ---------- Router ----------
 route = st.session_state["route"]
@@ -457,6 +550,8 @@ if route == "home":
     page_home()
 elif route == "checkups":
     page_checkups()
+elif route == "mucus_info":
+    page_mucus_info()
 elif route == "mucus_detect":
     page_mucus_detect()
 else:
