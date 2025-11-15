@@ -1,168 +1,227 @@
-# klinik_ml_app.py
+# klinik_app_ml_ready_fullbreakdown.py
 import streamlit as st
 from PIL import Image, ImageOps
 import numpy as np
 import colorsys
-from typing import Tuple, Dict
-import tensorflow as tf
-
-# ---------- Load ML Model ----------
-@st.cache_resource
-def load_model():
-    # You should train a small CNN or use a pre-trained model and save as 'klinik_cnn_model.h5'
-    return tf.keras.models.load_model("klinik_cnn_model.h5")
-
-model = load_model()
-COLOR_CLASSES = ["clear","white","yellow","green","brown","red","black","uncertain"]
 
 # ---------- App Setup ----------
-st.set_page_config(page_title="Klinik 2.0", layout="centered")
-st.markdown("<h1 style='text-align:center'>Klinik 2.0</h1>", unsafe_allow_html=True)
-st.write("Upload your mucus image and answer a few quick questions for a detailed analysis.")
+st.set_page_config(page_title="Klinik Full Breakdown", layout="centered")
+st.markdown("<h1 style='text-align:center'>Klinik ML-style Full Analysis</h1>", unsafe_allow_html=True)
+st.write("Upload your mucus image and answer the questions inline for a detailed, science-backed analysis.")
 
-# ---------- Original EXPLAINERS (Rich Breakdown) ----------
-EXPLAINERS: Dict[str, str] = {
-    "clear": """### Clear Mucus
-Clear mucus is transparent and watery — the most common and typically the healthiest kind.
+# ---------- FULL EXPLAINERS ----------
+EXPLAINERS_FULL = {
+    "clear": """
+### Clear Mucus
+**Color Description**  
+The image provided most likely shows a clear mucus. Clear mucus is transparent and watery. It’s the most common and typically the healthiest type of mucus.
 
-**Why it happens**  
-Your mucus is mostly water with just enough mucins and salts to stay fluid. This helps trap dust and microbes while keeping your airways moist.
+**The Science**  
+Mucus is made of water, mucins, and salts. Clear mucus means your mucin-to-water ratio is balanced, allowing it to trap dust and microbes while keeping your nasal passages moist.  
+Cilia, a hairlike structure in your cells, move this mucus and help clean + protect the respiratory tract.
 
-**You might see it when:**  
-- You’re well hydrated  
-- You have mild allergies or dust exposure  
-- Early in a cold before symptoms set in  
-- The weather or humidity changes
+**Possible Causes**  
+- When you’re well-hydrated  
+- During mild allergies or exposure to dust/pollen  
+- In the early stage of a cold, before immune cells thicken it  
+- From temperature changes or increased humidity  
 
-**Try this:**  
-Drink plenty of water, use a humidifier if needed, and avoid smoke or strong scents.
+**What to Do**  
+- Maintain hydration with lots of fluids  
+- Use a humidifier if air is dry  
+- Avoid smoke, perfumes, or strong odors  
+- No concern unless it changes color, thickens, or is accompanied by symptoms
 """,
-    "white": """### White or Gray Mucus
-White or gray mucus looks cloudy or milky and often feels thicker.
+    "white": """
+### White or Gray Mucus
+**Color Description**  
+The image provided most likely shows a white or gray mucus. White or gray mucus looks cloudy or milky and feels thicker than clear mucus.
 
-**Why it happens**  
-As mucus loses water, mucins become more concentrated. This often signals mild congestion or slower airflow.
+**The Science**  
+As mucus becomes dehydrated, water content drops and mucins become more concentrated, giving it a cloudy appearance. White mucus can also indicate mild congestion, when airflow slows and mucus moves less efficiently, trapping more dead cells and proteins.
 
-**You might see it when:**  
-- You have a minor cold or sinus irritation  
-- You’re dehydrated or the air is dry  
-- Your nasal passages are inflamed
+**Possible Causes**  
+- Mild nasal or sinus congestion  
+- Early cold or minor irritation of nasal tissues  
+- Dehydration or exposure to dry air  
+- Temporary airway inflammation  
 
-**Try this:**  
-Stay hydrated, rest, and breathe warm, moist air to clear things up.
+**What to Do**  
+- Drink plenty of water  
+- Use a saline spray or humidifier  
+- Rest and breathe warm, moist air (like a shower)  
+- Usually resolves naturally unless symptoms persist or worsen
 """,
-    "yellow": """### Yellow Mucus
-Yellow mucus has a pale to deeper tint and is thicker.
+    "yellow": """
+### Yellow Mucus
+**Color Description**  
+The image provided most likely shows a yellow mucus. Yellow mucus is thick and tinted from pale yellow color.
 
-**Why it happens**  
-Your immune system sends white blood cells to fight irritants. Their enzymes and proteins give mucus its yellow hue.
+**The Science**  
+When the immune system activates, white blood cells (neutrophils) move into mucus to fight irritants or pathogens. These cells release enzymes and iron-containing proteins that give the mucus a yellow hue. The color change shows an active immune response, not necessarily infection.
 
-**You might see it when:**  
-- Fighting a mild cold or allergy  
-- Recovering from an infection  
-- Slightly dehydrated
+**Possible Causes**  
+- Mild viral infection (like a cold)  
+- Allergic reaction with inflammation  
+- Healing stage of a recent infection  
+- Normal daytime thickening from low hydration  
 
-**Try this:**  
-Rest, drink fluids, and use steam or a saline rinse to stay clear.
+**What to Do**  
+- Rest and stay hydrated  
+- Use steam or humid air to thin mucus  
+- Avoid unnecessary antibiotics (color alone does not mean you have an infection)  
+- If fever or persistent congestion occurs, seek medical evaluation
 """,
-    "green": """### Green Mucus
-Green mucus is dense and darker, sometimes olive-toned.
+    "green": """
+### Green Mucus
+**Color Description**  
+The image provided most likely shows a green mucus. Green mucus is dense and brightly colored, dark green or almost olive.
 
-**Why it happens**  
-A strong immune response fills mucus with enzymes that deepen its color — it doesn’t always mean infection.
+**The Science**  
+A stronger immune response introduces even more neutrophils. Their enzymes, especially myeloperoxidase (a green-tinted iron enzyme), give mucus this color. While often linked to infection, green mucus mainly shows inflammation, not necessarily bacterial invasion.
 
-**You might see it when:**  
-- You have sinus pressure or a lingering cold  
-- You’ve been around smoke or pollution  
+**Possible Causes**  
+- Ongoing sinus inflammation or infection  
+- Allergic irritation lasting several days  
+- Environmental exposure (polluted air, dust, smoke)  
 
-**Try this:**  
-Rinse your nose with saline, rest, and hydrate. If it lasts long or worsens, check in with your doctor.
+**What to Do**  
+- Hydrate and get rest  
+- Use nasal rinses or gentle saline sprays  
+- Avoid polluted environments or smoking  
+- If green mucus extends beyond 10 days, seek medical care
 """,
-    "brown": """### Brown Mucus
-Brown or rust-colored mucus may look dry or grainy.
+    "brown": """
+### Brown Mucus
+**Color Description**  
+The image provided most likely shows a brown mucus. Brown or rust-colored mucus has a reddish-brown tint and may appear dry or grainy.
 
-**Why it happens**  
-It usually contains dried blood or small particles like dust or smoke. As blood oxidizes, it turns darker.
+**The Science**  
+The color usually comes from oxidized hemoglobin — old or dried blood — or from inhaled particles. As small capillaries in nasal tissues break or as blood mixes with mucus and oxidizes, iron in hemoglobin darkens to brown.
 
-**You might see it when:**  
-- Your nose is dry or irritated  
-- You’ve been exposed to smoke or dust  
+**Possible Causes**  
+- Dried or old blood from nose irritation or dryness  
+- Smoke or dust inhalation  
+- Frequent nose blowing or minor trauma  
+- Post-nasal drip mixing with old blood  
 
-**Try this:**  
-Avoid irritants and keep your airways moist with saline spray.
+**What to Do**  
+- Avoid irritants and dry air  
+- Use saline sprays to keep nasal passages moist  
+- If brown mucus is frequent or heavy, consult a clinician to rule out chronic irritation
 """,
-    "red": """### Red or Pink Mucus
-Red or pink streaks appear when tiny blood vessels break inside your nose.
+    "red": """
+### Red or Pink Mucus
+**Color Description**  
+Reddish or pink mucus contains visible streaks or spots of fresh blood.
 
-**Why it happens**  
-The blood mixes with mucus before clotting, creating a pink or red hue.
+**The Science**  
+This occurs when tiny blood vessels (capillaries) in the nasal passages rupture. The blood mixes with mucus before clotting, resulting in the reddish tint. It’s usually benign if minimal.
 
-**You might see it when:**  
-- You blow or wipe your nose often  
-- The air is dry or cold  
+**Possible Causes**  
+- Dry air or dehydration  
+- Forceful nose blowing or frequent wiping  
+- Irritation from allergens or infection  
 
-**Try this:**  
-Be gentle when cleaning your nose and keep the air humid.
+**What to Do**  
+- Gently clear the nose (avoid aggressive blowing)  
+- Keep air moist with a humidifier  
+- Apply gentle saline spray  
+- If bleeding is frequent, heavy, or accompanied by other symptoms, seek medical attention
 """,
-    "black": """### Black or Very Dark Mucus
-Black or very dark mucus can look speckled or smoky.
+    "black": """
+### Black or Very Dark Mucus
+**Color Description**  
+Black or gray-black mucus looks dark and often thick, sometimes speckled.
 
-**Why it happens**  
-Tiny particles like soot, smoke, or dust stick to mucus. Sometimes old blood deep in the sinuses can darken it too.
+**The Science**  
+This appearance usually results from inhaled particles, such as smoke, soot, or dust, sticking to mucus. Less commonly, dark mucus can occur if old blood oxidizes deep in the sinuses. The darkness comes from carbon or iron-based pigments trapped in mucins.
 
-**You might see it when:**  
-- You’ve been around smoke, dust, or pollution  
-- Your sinuses are very dry  
+**Possible Causes**  
+- Pollution or smoke exposure  
+- Dusty environments (construction, fireplaces)  
+- Chronic nasal dryness or irritation  
+- Rarely, fungal infections  
 
-**Try this:**  
-Rinse your nose, breathe clean air, and avoid pollutants.
+**What to Do**  
+- Move to clean, humid air  
+- Rinse nasal passages with sterile saline  
+- Avoid smoking or polluted air  
+- If persistent without clear environmental cause, consult a healthcare professional
 """,
-    "uncertain": """### Uncertain or Mixed Color
-Sometimes mucus shows multiple tones or unclear colors.
+    "uncertain": """
+### Uncertain or Mixed Color
+**Color Description**  
+The image provided is unable to be classified as a certain mucus color. Sometimes mucus shows mixed tones or unclear color.
 
-**Why it happens**  
-Lighting, filters, or tissue tint can alter the photo, and colors shift naturally as mucus thickens or dries.
+**The Science**  
+Lighting, camera filters, and tissue color can alter the perceived hue. Mixtures also happen when mucus is transitioning between immune stages or hydration levels.
 
-**Try this:**  
-Retake your photo in natural light with a white background and track any changes over time.
-""",
+**Possible Causes**  
+- Lighting issues or camera tint  
+- Mixed immune response or healing phase  
+- Varying hydration or mild irritation  
+
+**What to Do**  
+- Retake the photo in natural light with a white background  
+- Focus on symptoms, not color alone  
+- Track how it changes over time rather than at one moment
+"""
 }
 
-# ---------- Image Preprocessing ----------
-def preprocess_image(img: Image.Image) -> np.ndarray:
-    img = ImageOps.exif_transpose(img).convert("RGB").resize((128,128))
-    arr = np.array(img)/255.0
-    return np.expand_dims(arr, axis=0)
+# ---------- Utils ----------
+def average_rgb(img: Image.Image):
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    small = img.resize((96, 96))
+    arr = np.asarray(small, dtype=np.uint8)
+    center = arr[24:72, 24:72, :]
+    med = np.median(center, axis=(0, 1))
+    return tuple(int(x) for x in med)
 
-# ---------- Questionnaire ----------
-st.subheader("Symptom Check")
-congestion = st.slider("Congestion (0-10)", 0, 10)
-throat_dry = st.slider("Throat dryness (0-10)", 0, 10)
-fever = st.checkbox("Fever")
-smoke = st.checkbox("Recent smoke/dust exposure")
+def rgb_to_hsv01(r, g, b):
+    return colorsys.rgb_to_hsv(r/255.0, g/255.0, b/255.0)
 
-survey_features = np.array([[congestion, throat_dry, int(fever), int(smoke)]])
+def _hue_in_range(h, lo, hi, eps=0.8):
+    return (lo-eps <= h <= hi+eps) if lo <= hi else (h >= lo-eps or h <= hi+eps)
 
-# ---------- Upload & Analyze ----------
-uploaded = st.file_uploader("Upload mucus image (white background, natural light)", type=["jpg","jpeg","png","webp"])
+def classify_color(rgb):
+    r, g, b = rgb
+    h, s, v = rgb_to_hsv01(r, g, b)
+    h_deg = h*360
+
+    if v < 0.16: return "black"
+    if s < 0.07 and v > 0.80: return "clear"
+    if s < 0.18 and v > 0.60: return "white"
+    if v < 0.45 and s >= 0.25 and 15 < h_deg < 50: return "brown"
+    if _hue_in_range(h_deg, 25, 75) and s >= 0.16 and v >= 0.50: return "yellow"
+    if _hue_in_range(h_deg, 75, 170) and s >= 0.20: return "green"
+    if (_hue_in_range(h_deg, 342, 360) or _hue_in_range(h_deg, 0, 18)) and s >= 0.20 and v > 0.25:
+        return "red"
+    return "uncertain"
+
+# ---------- Image + Questionnaire ----------
+uploaded = st.file_uploader("Upload mucus image (white background, natural light)", type=["jpg","png","jpeg","webp"])
 if uploaded:
     img = Image.open(uploaded)
     st.image(img, caption="Uploaded image", use_container_width=True)
 
+    st.subheader("Inline Questions")
+    congestion = st.slider("Congestion (0-10)", 0, 10)
+    throat_dry = st.slider("Throat dryness (0-10)", 0, 10)
+    fever = st.checkbox("Fever?")
+    smoke = st.checkbox("Recent smoke/dust exposure?")
+
     if st.button("Analyze"):
-        # ML Prediction
-        img_input = preprocess_image(img)
-        preds = model.predict(img_input)[0]
-        predicted_class = COLOR_CLASSES[np.argmax(preds)]
-        confidence = float(np.max(preds))
+        rgb = average_rgb(img)
+        color_key = classify_color(rgb)
 
-        # Adjust confidence using survey (simple heuristic)
-        if predicted_class in ["yellow","green"] and (congestion>5 or fever):
-            confidence += 0.05
-        if predicted_class=="clear" and (congestion>5 or fever):
-            confidence -= 0.1
-        confidence = min(confidence,1.0)
+        # Heuristic adjustment
+        if color_key in ["yellow","green"] and (congestion>5 or fever):
+            adjusted = f"{color_key} (immune response likely)"
+        elif color_key == "clear" and (congestion>5 or fever):
+            adjusted = f"{color_key} (possible dehydration or early infection)"
+        else:
+            adjusted = color_key
 
-        # Output with original rich breakdown
-        st.markdown(f"**Detected Color:** {predicted_class.capitalize()}  \n**Confidence:** {confidence*100:.1f}%")
-        st.markdown(EXPLAINERS[predicted_class])
+        st.markdown(f"**Detected Color:** {adjusted}")
+        st.markdown(EXPLAINERS_FULL[color_key])
