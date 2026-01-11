@@ -1,450 +1,522 @@
 # klinik_app.py
-
 import streamlit as st
-from PIL import Image, ImageOps
-import numpy as np
-import colorsys
-from typing import Dict, Any
+from typing import Dict, Any, List
 
-# basic Streamlit setup
+# ---------- Page config ----------
 st.set_page_config(
     page_title="Klinik",
     layout="centered",
     menu_items={
         "Get Help": "https://www.cdc.gov/",
-        "About": "Klinik helps users understand mucus color and sinus patterns.",
+        "About": "Klinik helps users organize symptoms and understand next steps. Not a medical diagnosis.",
     },
 )
 
-# color palette for the UI
-PRIMARY = "#293241"
-ACCENT = "#e0fbfc"
-BACKGROUND = "#98c1d9"
-TEXT_DARK = "#293241"
+# ---------- Theme / UI palette (closer to your mock) ----------
+PRIMARY = "#2AA8A1"       # teal
+PRIMARY_DARK = "#1E8E88"
+BG = "#F5F7F7"
+CARD = "#FFFFFF"
+TEXT = "#163A3A"
+MUTED = "#6B7B7B"
+BORDER = "rgba(17, 24, 39, 0.08)"
+DANGER = "#D96565"
+WARNING = "#F2C14E"
+SUCCESS = "#50B37A"
 
-# custom styles injected into the app
 CSS = f"""
 <style>
 .stApp {{
-  background-color: {BACKGROUND};
-  color: {TEXT_DARK};
+  background: {BG};
+  color: {TEXT};
   font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }}
-h1, h2, h3, h4, h5, h6 {{
-  color: {TEXT_DARK};
+header, footer {{ visibility: hidden; }}
+
+.block-container {{
+  padding-top: 1.6rem;
+  padding-bottom: 2.2rem;
+  max-width: 520px;
 }}
-a {{
-  color: {TEXT_DARK};
-  text-decoration: underline;
+
+.klinik-top {{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin-bottom: 10px;
 }}
-hr.soft {{
-  border: none;
+.klinik-badge {{
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: {PRIMARY};
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 10px 22px rgba(42,168,161,0.18);
+}}
+.klinik-badge span {{
+  color: white; font-weight: 900; font-size: 18px; line-height: 1;
+}}
+.klinik-title {{
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}}
+.card {{
+  background: {CARD};
+  border: 1px solid {BORDER};
+  border-radius: 16px;
+  padding: 18px 16px;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.06);
+  margin: 12px 0;
+}}
+.card h2 {{
+  margin: 0 0 6px 0;
+  font-size: 20px;
+}}
+.subtle {{
+  color: {MUTED};
+  font-size: 14px;
+  margin-top: 2px;
+}}
+.pillrow {{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}}
+.pill {{
+  border: 1px solid {BORDER};
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: {TEXT};
+  background: #FBFEFE;
+}}
+.hr {{
   height: 1px;
-  background: #e6edf3;
-  margin: 1.1rem 0;
+  background: rgba(17, 24, 39, 0.08);
+  margin: 12px 0;
 }}
-footer {{
-  visibility: hidden;
+.kbtn > button {{
+  width: 100%;
+  background: {PRIMARY} !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 0.7rem 1rem !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 18px rgba(42,168,161,0.20) !important;
 }}
-.hero {{
-  text-align: center;
-  padding: 2rem 1rem 1rem 1rem;
+.kbtn > button:hover {{
+  filter: brightness(0.97) !important;
 }}
-.hero h1 {{
-  margin: 0;
-  font-size: 2.2rem;
+.kbtn-secondary > button {{
+  width: 100%;
+  background: white !important;
+  color: {TEXT} !important;
+  border: 1px solid {BORDER} !important;
+  border-radius: 12px !important;
+  padding: 0.7rem 1rem !important;
+  font-weight: 800 !important;
 }}
-.stButton > button {{
-  background: {ACCENT} !important;
-  color: {TEXT_DARK} !important;
-  border: 1px solid #c5e9ee !important;
-  border-radius: 10px !important;
-  padding: 0.6rem 1rem !important;
-  font-weight: 700 !important;
-  box-shadow: 0 1px 2px rgba(16,24,40,0.05) !important;
+.kbtn-danger > button {{
+  width: 100%;
+  background: {DANGER} !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 0.7rem 1rem !important;
+  font-weight: 900 !important;
 }}
-.stButton > button:hover {{
-  filter: brightness(0.96) !important;
+.tag {{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid {BORDER};
+  font-size: 13px;
+  margin: 4px 6px 0 0;
+  background: #FBFEFE;
 }}
-.stButton > button:disabled {{
-  opacity: 0.6 !important;
-  cursor: not-allowed !important;
+.tag b {{ font-weight: 800; }}
+.warn {{
+  border-left: 5px solid {WARNING};
+  padding: 10px 12px;
+  background: rgba(242,193,78,0.14);
+  border-radius: 12px;
+  margin-top: 10px;
+}}
+.danger {{
+  border-left: 5px solid {DANGER};
+  padding: 10px 12px;
+  background: rgba(217,101,101,0.14);
+  border-radius: 12px;
+  margin-top: 10px;
+}}
+.ok {{
+  border-left: 5px solid {SUCCESS};
+  padding: 10px 12px;
+  background: rgba(80,179,122,0.14);
+  border-radius: 12px;
+  margin-top: 10px;
+}}
+.small {{
+  font-size: 13px;
+  color: {MUTED};
 }}
 </style>
 """
-st.write(CSS, unsafe_allow_html=True)
+st.markdown(CSS, unsafe_allow_html=True)
 
-
-# initialize session state for navigation and saved report
+# ---------- State ----------
 def init_state():
-    if "route" not in st.session_state:
-        st.session_state["route"] = "home"
-    if "mucus_report" not in st.session_state:
-        st.session_state["mucus_report"] = ""
+    ss = st.session_state
+    ss.setdefault("route", "start")
+    ss.setdefault("lang", "English")
+    ss.setdefault("symptoms", [])          # List[str]
+    ss.setdefault("duration", "Today")
+    ss.setdefault("severity", "Mild")
+    ss.setdefault("risk", None)            # "Low" | "Moderate" | "High"
+    ss.setdefault("summary", "")
 
 init_state()
 
-
-# full explainers for each color category
-EXPLAINERS_FULL: Dict[str, str] = {
-    "clear": """
-### Clear Mucus
-Clear mucus is usually thin and watery. This is the most common and generally healthy form.
-
-**Why it looks this way**  
-The balance of water and mucins is normal. This helps trap dust and keep the nose hydrated.
-
-**Typical reasons**  
-- Hydration  
-- Allergies or dust  
-- Early stages of a cold  
-- Temperature changes  
-
-**What helps**  
-Stay hydrated, avoid irritants, use a humidifier if needed.
-""",
-    "white": """
-### White or Gray Mucus
-White mucus is thicker and looks cloudy. This often shows mild congestion.
-
-**Why it looks this way**  
-Low moisture and slower airflow make mucus thicker and cloudier.
-
-**Typical reasons**  
-- Mild congestion  
-- Early cold  
-- Dehydration  
-- Dry air  
-
-**What helps**  
-Drink water, use saline spray, rest, and use humid air.
-""",
-    "yellow": """
-### Yellow Mucus
-Yellow mucus becomes discolored when immune cells collect in the mucus.
-
-**Why it looks this way**  
-White blood cells release enzymes that tint the mucus yellow.
-
-**Typical reasons**  
-- Mild viral infection  
-- Allergies  
-- Normal healing phase  
-
-**What helps**  
-Hydrate, rest, steam/humid air. Color alone does not mean bacterial infection.
-""",
-    "green": """
-### Green Mucus
-Green mucus is thick and vibrantly colored.
-
-**Why it looks this way**  
-A higher concentration of immune enzymes creates a darker green tone.
-
-**Typical reasons**  
-- Ongoing inflammation or infection  
-- Allergies  
-- Irritants in the environment  
-
-**What helps**  
-Hydration, nasal rinses, avoiding smoke or pollution.
-""",
-    "brown": """
-### Brown Mucus
-Brown mucus usually contains dried or older blood.
-
-**Why it looks this way**  
-Oxidized hemoglobin or dust mixes into mucus and darkens it.
-
-**Typical reasons**  
-- Dryness  
-- Irritation  
-- Nose blowing  
-- Smoke or dust exposure  
-
-**What helps**  
-Avoid irritants, keep passages moist, use saline.
-""",
-    "red": """
-### Red or Pink Mucus
-Red or pink coloring typically indicates fresh blood in the mucus.
-
-**Why it looks this way**  
-Tiny blood vessels in the lining can break easily and mix with mucus.
-
-**Typical reasons**  
-- Dry air  
-- Strong nose blowing  
-- Irritation or inflammation  
-
-**What helps**  
-Gentle clearing, hydration, humid air.
-""",
-    "black": """
-### Black or Very Dark Mucus
-Dark mucus usually contains soot, smoke, or dust particles.
-
-**Why it looks this way**  
-Particles stick to mucus and darken the color.
-
-**Typical reasons**  
-- Pollution  
-- Smoke exposure  
-- Dryness  
-- Rare fungal infection  
-
-**What helps**  
-Avoid irritants and rinse passages with sterile saline.
-""",
-    "uncertain": """
-### Uncertain or Mixed Color
-Sometimes the color is unclear due to lighting, mixtures, or camera issues.
-
-Try retaking the photo in natural lighting on a white surface.
-"""
-}
-
-
-# take and center-crop the image for analysis
-def preprocess_center_crop(img: Image.Image, size: int = 192) -> np.ndarray:
-    img = ImageOps.exif_transpose(img).convert("RGB")
-    img = img.resize((size, size))
-    return np.asarray(img, dtype=np.uint8)
-
-
-# convert RGB numpy array to HSV
-def rgb_array_to_hsv_array(arr: np.ndarray) -> np.ndarray:
-    h, w, _ = arr.shape
-    hsv = np.zeros_like(arr, dtype=np.float32)
-    for i in range(h):
-        for j in range(w):
-            r, g, b = arr[i, j] / 255.0
-            hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
-            hsv[i, j, 0] = hh
-            hsv[i, j, 1] = ss
-            hsv[i, j, 2] = vv
-    return hsv
-
-
-# classify an individual HSV pixel into a color label
-def classify_pixel(h: float, s: float, v: float) -> str:
-    hue_deg = h * 360.0
-
-    if v < 0.16:
-        return "black"
-    if s < 0.07 and v > 0.80:
-        return "clear"
-    if s < 0.20 and v > 0.55:
-        return "white"
-    if v < 0.55 and s >= 0.25 and 10 < hue_deg < 50:
-        return "brown"
-    if 30 <= hue_deg <= 75 and s >= 0.18 and v >= 0.40:
-        return "yellow"
-    if 75 < hue_deg <= 170 and s >= 0.20 and v >= 0.25:
-        return "green"
-    if (0 <= hue_deg <= 20 or 340 <= hue_deg <= 360) and s >= 0.20 and v > 0.25:
-        return "red"
-    return "uncertain"
-
-
-# analyze the mucus region and compute distribution + dominant color
-def analyze_mucus_image(img: Image.Image) -> Dict[str, Any]:
-    arr = preprocess_center_crop(img)
-    hsv = rgb_array_to_hsv_array(arr)
-
-    h = hsv[..., 0]
-    s = hsv[..., 1]
-    v = hsv[..., 2]
-
-    mask = (s > 0.12) & (v > 0.15)
-    if not np.any(mask):
-        mask = np.ones_like(s, dtype=bool)
-
-    counts = {}
-    total = int(mask.sum())
-
-    for hi, si, vi in zip(h[mask], s[mask], v[mask]):
-        label = classify_pixel(hi, si, vi)
-        counts[label] = counts.get(label, 0) + 1
-
-    fractions = {k: v_ / total for k, v_ in counts.items()}
-    if not fractions:
-        return {
-            "primary": "uncertain",
-            "fractions": {},
-            "n_pixels": total,
-            "median_hue_deg": float(np.median(h[mask]) * 360),
-            "median_sat": float(np.median(s[mask])),
-            "median_val": float(np.median(v[mask])),
-        }
-
-    primary, primary_frac = sorted(fractions.items(), key=lambda kv: kv[1], reverse=True)[0]
-    if primary == "uncertain" or primary_frac < 0.55:
-        primary = "uncertain"
-
-    return {
-        "primary": primary,
-        "fractions": fractions,
-        "n_pixels": total,
-        "median_hue_deg": float(np.median(h[mask]) * 360),
-        "median_sat": float(np.median(s[mask])),
-        "median_val": float(np.median(v[mask])),
-    }
-
-
-# build the final markdown report
-def build_report(analysis: Dict[str, Any], symptoms: Dict[str, Any]) -> str:
-    color_key = analysis["primary"]
-    explainer = EXPLAINERS_FULL.get(color_key, EXPLAINERS_FULL["uncertain"])
-
-    frac_lines = [
-        f"- {k.capitalize()}: {frac * 100:.1f}%"
-        for k, frac in sorted(analysis["fractions"].items(), key=lambda kv: kv[1], reverse=True)
-    ]
-    frac_text = "\n".join(frac_lines) if frac_lines else "No strong color signal detected."
-
-    stats_block = (
-        f"**Image Summary**  \n"
-        f"- Pixels analyzed: {analysis['n_pixels']}  \n"
-        f"- Median hue: {analysis['median_hue_deg']:.1f}°  \n"
-        f"- Median saturation: {analysis['median_sat']:.2f}  \n"
-        f"- Median brightness: {analysis['median_val']:.2f}  \n\n"
-        f"**Color Distribution**  \n{frac_text}\n"
-    )
-
-    symptoms_block = (
-        f"**Reported Symptoms**  \n"
-        f"- Fever: {symptoms.get('fever')}  \n"
-        f"- Nasal congestion: {symptoms.get('congestion')}  \n"
-        f"- Allergy symptoms: {symptoms.get('allergy')}  \n"
-        f"- Recent cold: {symptoms.get('recent_cold')}  \n"
-    )
-
-    notes = []
-    if color_key in ["yellow", "green"]:
-        if symptoms.get("fever") == "Yes" or symptoms.get("congestion") == "Yes":
-            notes.append(
-                "Yellow or green mucus with fever or congestion often reflects an active immune response."
-            )
-        else:
-            notes.append("Yellow or green mucus without major symptoms can appear during minor viral issues.")
-    elif color_key == "clear":
-        if symptoms.get("congestion") == "Yes":
-            notes.append("Clear mucus with congestion can be early irritation or the start of a cold.")
-        else:
-            notes.append("Clear mucus without symptoms often reflects normal hydration.")
-    elif color_key == "white":
-        notes.append("White mucus with congestion suggests mild swelling or dryness.")
-    elif color_key == "brown":
-        notes.append("Brown mucus often contains older blood or irritation-related residue.")
-    elif color_key == "red":
-        notes.append("Red or pink streaks usually come from small broken vessels.")
-    elif color_key == "black":
-        notes.append("Dark mucus often comes from smoke or dust exposure.")
-    else:
-        notes.append("Color could not be clearly identified.")
-
-    interpretation = "**Interpretation**  \n" + "\n".join(f"- {n}" for n in notes)
-
-    return (
-        f"**Detected Color:** {color_key.capitalize()}\n\n"
-        + stats_block
-        + "\n"
-        + symptoms_block
-        + "\n"
-        + interpretation
-        + "\n\n"
-        + explainer
-    )
-
-
-# basic routing
-def nav_to(route: str):
+def nav(route: str):
     st.session_state["route"] = route
     st.rerun()
 
-
-def page_home():
+def header():
     st.markdown(
-        """
-<div class="hero">
-  <h1>Klinik</h1>
-  <p>Upload a mucus sample photo on a white background to see what the color might indicate.</p>
+        f"""
+<div class="klinik-top">
+  <div class="klinik-badge"><span>+</span></div>
+  <div class="klinik-title">Klinik</div>
 </div>
 """,
         unsafe_allow_html=True,
     )
-    if st.button("Get Started", use_container_width=True):
-        nav_to("checkups")
 
+# ---------- Simple risk logic (not diagnosis) ----------
+RED_FLAGS = {
+    "Trouble breathing",
+    "Chest pain",
+    "Fainting / Severe dizziness",
+    "Severe allergic reaction",
+    "Severe bleeding",
+}
 
-def page_checkups():
-    st.title("Checkups")
-    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
+COMMON = ["Fever", "Cough", "Stomach pain", "Sore throat", "Headache", "Nausea", "Rash"]
 
-    st.subheader("Mucus Analysis")
-    st.write("Upload a photo to check mucus color.")
-    if st.button("Open Mucus Checkup", use_container_width=True):
-        nav_to("mucus_info")
+def compute_risk(symptoms: List[str], duration: str, severity: str) -> str:
+    # high if red-flag or severe + longer duration
+    if any(s in RED_FLAGS for s in symptoms):
+        return "High"
+    if severity == "Severe":
+        return "High" if duration in ["Over a Week"] else "Moderate"
+    if severity == "Moderate":
+        return "Moderate" if duration in ["2–3 Days", "Over a Week"] else "Low"
+    # mild
+    return "Low" if duration in ["Today"] else "Moderate"
 
-    if st.button("Back to Home", use_container_width=True):
-        nav_to("home")
+def build_summary(ss: Dict[str, Any]) -> str:
+    symptoms = ss["symptoms"] if ss["symptoms"] else ["(none selected)"]
+    lines = []
+    lines.append("KLINIK SYMPTOM SUMMARY")
+    lines.append(f"Language: {ss['lang']}")
+    lines.append("")
+    lines.append("Reported:")
+    for s in symptoms:
+        lines.append(f"- {s}")
+    lines.append("")
+    lines.append(f"Duration: {ss['duration']}")
+    lines.append(f"Severity: {ss['severity']}")
+    lines.append("")
+    lines.append(f"Suggested next step (non-diagnostic): {ss['risk']} risk")
+    lines.append("")
+    lines.append("Emergency warning signs:")
+    lines.append("- Trouble breathing")
+    lines.append("- Chest pain")
+    lines.append("- Fainting / severe dizziness")
+    return "\n".join(lines)
 
-
-def page_mucus_info():
-    st.title("How It Works")
-    st.markdown("<hr class='soft' />", unsafe_allow_html=True)
-    st.write(
-        "Klinik examines hundreds of pixels from the central region of your photo. "
-        "It converts the image to HSV color space to estimate color tones and ignore most of the white tissue background. "
-        "Then it determines the dominant mucus color and combines this with a short symptom questionnaire."
+# ---------- Pages ----------
+def page_start():
+    header()
+    st.markdown(
+        f"""
+<div class="card" style="background: linear-gradient(180deg, rgba(42,168,161,0.30), rgba(42,168,161,0.08));">
+  <h2>Check Symptoms<br/>& Next Steps</h2>
+  <div class="subtle">No personal information stored.</div>
+  <div class="hr"></div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
-    st.write("For accuracy, use a white background and natural light.")
 
-    if st.button("Proceed to Checkup", use_container_width=True):
-        nav_to("mucus_detect")
-    if st.button("Back to Checkups", use_container_width=True):
-        nav_to("checkups")
+    st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+    if st.button("Start"):
+        nav("language")
+    st.markdown("</div>", unsafe_allow_html=True)
 
+def page_language():
+    header()
+    st.markdown(
+        """
+<div class="card">
+  <h2>Select Your Language</h2>
+  <div class="subtle">Choose the language you want to use.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-def page_mucus_detect():
-    st.title("Mucus Color Checkup")
-    st.write("Upload a photo with mucus on a white background.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+        if st.button("🇺🇸 English"):
+            st.session_state["lang"] = "English"
+            nav("info")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    uploaded = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "webp"])
+    with col2:
+        st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+        if st.button("🇪🇸 Español"):
+            st.session_state["lang"] = "Español"
+            nav("info")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("Symptom Check (optional)")
-    symptoms = {
-        "fever": st.radio("Fever?", ["No", "Yes"]),
-        "congestion": st.radio("Nasal congestion?", ["No", "Yes"]),
-        "allergy": st.radio("Allergy symptoms?", ["No", "Yes"]),
-        "recent_cold": st.radio("Cold in the last few days?", ["No", "Yes"]),
-    }
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("start")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if uploaded:
-        img = Image.open(uploaded)
-        st.image(img, caption="Uploaded image", use_container_width=True)
+def page_info():
+    header()
+    st.markdown(
+        """
+<div class="card">
+  <h2>Important Information</h2>
+  <div class="subtle">I will help you organize symptoms and suggest next steps.</div>
+  <div class="hr"></div>
+  <div class="small">
+    • I am not a doctor and cannot diagnose medical conditions.<br/>
+    • If you have severe symptoms, seek emergency help now.
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-        if st.button("Analyze", use_container_width=True):
-            analysis = analyze_mucus_image(img)
-            st.session_state["mucus_report"] = build_report(analysis, symptoms)
+    st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+    if st.button("I Understand, Continue"):
+        nav("symptom_input")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if st.session_state.get("mucus_report"):
-        st.markdown(st.session_state["mucus_report"], unsafe_allow_html=True)
+    st.markdown('<div class="kbtn-danger">', unsafe_allow_html=True)
+    if st.button("Get Emergency Help"):
+        nav("emergency")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if st.button("Back to Checkups", use_container_width=True):
-        nav_to("checkups")
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("language")
+    st.markdown("</div>", unsafe_allow_html=True)
 
+def page_symptom_input():
+    header()
+    st.markdown(
+        """
+<div class="card">
+  <h2>What’s bringing you today?</h2>
+  <div class="subtle">Type, tap, or select common symptoms.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-# router
+    typed = st.text_input("Type a symptom (optional)", placeholder="e.g., fever, cough, stomach pain")
+    if typed:
+        if st.button("Add typed symptom"):
+            st.session_state["symptoms"].append(typed.strip().title())
+            st.session_state["symptoms"] = sorted(list(set(st.session_state["symptoms"])))
+            st.rerun()
+
+    st.markdown("<div class='card'><div class='subtle'>Quick picks</div><div class='pillrow'>", unsafe_allow_html=True)
+    for s in COMMON:
+        if st.button(s, key=f"pick_{s}"):
+            st.session_state["symptoms"].append(s)
+            st.session_state["symptoms"] = sorted(list(set(st.session_state["symptoms"])))
+            st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    if st.session_state["symptoms"]:
+        st.markdown("<div class='card'><h2>Your stages</h2>", unsafe_allow_html=True)
+        for s in st.session_state["symptoms"]:
+            st.markdown(f"<span class='tag'><b>•</b> {s}</span>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+    if st.button("Continue"):
+        nav("learn_more")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("info")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def page_learn_more():
+    header()
+    st.markdown(
+        """
+<div class="card">
+  <h2>Let’s learn more…</h2>
+  <div class="subtle">A couple quick questions to guide next steps.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.session_state["duration"] = st.radio(
+        "How long have you had this?",
+        ["Today", "2–3 Days", "Over a Week"],
+        index=["Today", "2–3 Days", "Over a Week"].index(st.session_state["duration"]),
+        horizontal=True,
+    )
+
+    st.session_state["severity"] = st.radio(
+        "How severe does it feel?",
+        ["Mild", "Moderate", "Severe"],
+        index=["Mild", "Moderate", "Severe"].index(st.session_state["severity"]),
+        horizontal=True,
+    )
+
+    st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+    if st.button("Confirm & Get Next Steps  ›"):
+        st.session_state["risk"] = compute_risk(
+            st.session_state["symptoms"],
+            st.session_state["duration"],
+            st.session_state["severity"],
+        )
+        nav("next_steps")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("symptom_input")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def page_next_steps():
+    header()
+    risk = st.session_state.get("risk") or "Moderate"
+
+    # banner tone
+    if risk == "High":
+        banner = f"<div class='danger'><b>High Risk</b><br/>Recommendation: Seek urgent care now.</div>"
+    elif risk == "Moderate":
+        banner = f"<div class='warn'><b>Moderate Risk</b><br/>Recommendation: Consider a clinic visit today.</div>"
+    else:
+        banner = f"<div class='ok'><b>Low Risk</b><br/>Recommendation: Home care and monitor symptoms.</div>"
+
+    st.markdown(
+        f"""
+<div class="card">
+  <h2>Next Steps for You</h2>
+  {banner}
+  <div class="hr"></div>
+  <div class="small"><b>When to get urgent help</b></div>
+  <div class="small">• Trouble breathing<br/>• Chest pain<br/>• Dizziness or fainting</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="kbtn">', unsafe_allow_html=True)
+    if st.button("Continue to Summary"):
+        st.session_state["summary"] = build_summary(st.session_state)
+        nav("summary")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("learn_more")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def page_summary():
+    header()
+    st.markdown(
+        """
+<div class="card" style="background: linear-gradient(180deg, rgba(42,168,161,0.22), rgba(42,168,161,0.06));">
+  <h2>Your Summary is Ready</h2>
+  <div class="subtle">You can copy or download this to share with a clinic.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    summary = st.session_state.get("summary") or build_summary(st.session_state)
+    st.text_area("Summary", value=summary, height=240)
+
+    st.download_button(
+        "Print Summary (Download .txt)",
+        data=summary,
+        file_name="klinik_summary.txt",
+        mime="text/plain",
+        use_container_width=True,
+    )
+
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Done"):
+        # reset but keep language
+        lang = st.session_state["lang"]
+        st.session_state.clear()
+        init_state()
+        st.session_state["lang"] = lang
+        nav("start")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def page_emergency():
+    header()
+    st.markdown(
+        """
+<div class="card">
+  <h2>Get Emergency Help</h2>
+  <div class="danger">
+    If you think this is an emergency, call your local emergency number (US: 911) right now.
+  </div>
+  <div class="hr"></div>
+  <div class="small">
+    Emergency warning signs can include trouble breathing, chest pain, severe allergic reaction,
+    fainting, or uncontrolled bleeding.
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
+    if st.button("Back"):
+        nav("info")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ---------- Router ----------
 route = st.session_state["route"]
-if route == "home":
-    page_home()
-elif route == "checkups":
-    page_checkups()
-elif route == "mucus_info":
-    page_mucus_info()
-elif route == "mucus_detect":
-    page_mucus_detect()
+if route == "start":
+    page_start()
+elif route == "language":
+    page_language()
+elif route == "info":
+    page_info()
+elif route == "symptom_input":
+    page_symptom_input()
+elif route == "learn_more":
+    page_learn_more()
+elif route == "next_steps":
+    page_next_steps()
+elif route == "summary":
+    page_summary()
+elif route == "emergency":
+    page_emergency()
 else:
-    page_home()
+    nav("start")
