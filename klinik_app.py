@@ -8,72 +8,39 @@ st.set_page_config(
     layout="centered",
     menu_items={
         "Get Help": "https://www.cdc.gov/",
-        "About": "Klinik is a health hub with multiple modules that help users learn patterns and prepare information for care visits. Not a medical diagnosis tool.",
+        "About": "Klinik is a health hub with multiple educational health modules. Not a medical diagnosis tool.",
     },
 )
 
-# ---------------- UI palette (green/teal mock vibe) ----------------
+# ---------------- UI palette ----------------
 PRIMARY = "#2AA8A1"
-PRIMARY_DARK = "#1E8E88"
 BG = "#F4F7F7"
 CARD = "#FFFFFF"
 TEXT = "#0F3636"
 MUTED = "#6B7B7B"
 BORDER = "rgba(17, 24, 39, 0.10)"
 
-# ---------------- CSS: iPhone-like 9:16 frame + cards ----------------
 CSS = f"""
 <style>
-/* Base */
 .stApp {{
   background: {BG};
   color: {TEXT};
   font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }}
 header, footer {{ visibility: hidden; }}
+
 .block-container {{
-  padding-top: 1.0rem;
-  padding-bottom: 2.2rem;
-  max-width: 980px; /* allow the centered phone to sit nicely */
+  padding-top: 1.4rem;
+  padding-bottom: 2.4rem;
+  max-width: 720px;
 }}
 
-/* Phone frame (rough iPhone 13/14 size: 390 x 844) */
-.phone-wrap {{
-  display: flex;
-  justify-content: center;
-}}
-.phone {{
-  width: 390px;
-  height: 844px;
-  background: #F8FAFA;
-  border-radius: 26px;
-  border: 1px solid rgba(17,24,39,0.14);
-  box-shadow: 0 24px 70px rgba(17,24,39,0.14);
-  overflow: hidden;
-  position: relative;
-}}
-.phone-inner {{
-  height: 100%;
-  overflow-y: auto;
-  padding: 18px 16px 22px 16px;
-}}
-
-/* nice subtle scrollbar */
-.phone-inner::-webkit-scrollbar {{
-  width: 8px;
-}}
-.phone-inner::-webkit-scrollbar-thumb {{
-  background: rgba(17,24,39,0.12);
-  border-radius: 999px;
-}}
-
-/* Klinik header */
 .klinik-top {{
   display:flex;
   align-items:center;
   justify-content:center;
   gap:10px;
-  margin: 6px 0 14px 0;
+  margin-bottom: 16px;
 }}
 .klinik-badge {{
   width: 30px; height: 30px;
@@ -83,20 +50,18 @@ header, footer {{ visibility: hidden; }}
   box-shadow: 0 12px 26px rgba(42,168,161,0.20);
 }}
 .klinik-badge span {{
-  color: white; font-weight: 950; font-size: 18px; line-height: 1;
+  color: white; font-weight: 900; font-size: 18px;
 }}
 .klinik-title {{
   font-weight: 900;
   font-size: 22px;
-  letter-spacing: 0.2px;
 }}
 
-/* Cards */
 .card {{
   background: {CARD};
   border: 1px solid {BORDER};
   border-radius: 18px;
-  padding: 16px 14px;
+  padding: 18px 16px;
   box-shadow: 0 14px 30px rgba(17, 24, 39, 0.06);
   margin: 12px 0;
 }}
@@ -108,7 +73,7 @@ header, footer {{ visibility: hidden; }}
 .subtle {{
   color: {MUTED};
   font-size: 14px;
-  line-height: 1.35;
+  line-height: 1.4;
 }}
 .hr {{
   height: 1px;
@@ -116,32 +81,23 @@ header, footer {{ visibility: hidden; }}
   margin: 12px 0;
 }}
 
-/* Splash (home screen) */
 .splash {{
-  background: linear-gradient(180deg, rgba(42,168,161,0.98), rgba(42,168,161,0.70));
+  background: linear-gradient(180deg, rgba(42,168,161,0.95), rgba(42,168,161,0.75));
   border-radius: 22px;
-  padding: 22px 16px;
+  padding: 26px 20px;
   color: white;
-  border: 1px solid rgba(255,255,255,0.20);
   box-shadow: 0 22px 48px rgba(42,168,161,0.26);
-  text-align: left;
-}}
-.splash-top {{
-  display:flex;
-  align-items:center;
-  gap:10px;
 }}
 .splash h1 {{
-  margin: 12px 0 0 0;
-  font-size: 24px;
+  margin: 10px 0 0 0;
+  font-size: 26px;
   font-weight: 950;
-  line-height: 1.15;
+  line-height: 1.2;
 }}
 .splash p {{
-  margin: 10px 0 0 0;
+  margin-top: 10px;
+  font-size: 15px;
   opacity: 0.95;
-  font-size: 14px;
-  line-height: 1.35;
 }}
 .splash-note {{
   margin-top: 14px;
@@ -149,18 +105,16 @@ header, footer {{ visibility: hidden; }}
   opacity: 0.9;
 }}
 
-/* Buttons */
 .kbtn > button {{
   width: 100%;
   background: {PRIMARY} !important;
   color: white !important;
   border: none !important;
   border-radius: 12px !important;
-  padding: 0.74rem 1rem !important;
+  padding: 0.75rem 1rem !important;
   font-weight: 900 !important;
   box-shadow: 0 12px 22px rgba(42,168,161,0.22) !important;
 }}
-.kbtn > button:hover {{ filter: brightness(0.98) !important; }}
 
 .kbtn-secondary > button {{
   width: 100%;
@@ -168,26 +122,25 @@ header, footer {{ visibility: hidden; }}
   color: {TEXT} !important;
   border: 1px solid {BORDER} !important;
   border-radius: 12px !important;
-  padding: 0.74rem 1rem !important;
+  padding: 0.75rem 1rem !important;
   font-weight: 900 !important;
 }}
 
-/* Module tiles */
 .module {{
   background: white;
   border: 1px solid {BORDER};
   border-radius: 18px;
-  padding: 14px 14px;
+  padding: 16px;
 }}
 .module .name {{
   font-weight: 950;
   font-size: 16px;
 }}
 .module .desc {{
-  margin-top: 4px;
-  font-size: 13px;
+  margin-top: 6px;
+  font-size: 13.5px;
   color: {MUTED};
-  line-height: 1.35;
+  line-height: 1.4;
 }}
 .pill {{
   display:inline-block;
@@ -196,7 +149,6 @@ header, footer {{ visibility: hidden; }}
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid {BORDER};
-  color: {TEXT};
   background: #FBFEFE;
 }}
 .grid {{
@@ -204,36 +156,19 @@ header, footer {{ visibility: hidden; }}
   grid-template-columns: 1fr;
   gap: 12px;
 }}
-.small {{
-  font-size: 12.5px;
-  color: {MUTED};
-  line-height: 1.35;
-}}
-
-/* Make Streamlit widgets feel less "desktop" */
-div[data-baseweb="input"] input {{
-  border-radius: 14px !important;
-}}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
-# ---------------- State / Nav ----------------
+# ---------------- State / Navigation ----------------
 def init_state():
-    ss = st.session_state
-    ss.setdefault("route", "home")
+    st.session_state.setdefault("route", "home")
 
 init_state()
 
 def nav(route: str):
     st.session_state["route"] = route
     st.rerun()
-
-def phone_start():
-    st.markdown('<div class="phone-wrap"><div class="phone"><div class="phone-inner">', unsafe_allow_html=True)
-
-def phone_end():
-    st.markdown("</div></div></div>", unsafe_allow_html=True)
 
 def header():
     st.markdown(
@@ -248,24 +183,14 @@ def header():
 
 # ---------------- Pages ----------------
 def page_home():
-    phone_start()
-
-    # Home = all-green, simpler, higher contrast, easy to read
     st.markdown(
-        f"""
+        """
 <div class="splash">
-  <div class="splash-top">
-    <div class="klinik-badge" style="background: rgba(255,255,255,0.22); box-shadow:none;">
-      <span style="color:white;">+</span>
-    </div>
-    <div style="font-weight:950; font-size:20px;">Klinik</div>
-  </div>
-
-  <h1>Your Health Hub<br/>in One Place</h1>
+  <h1>Your Health Hub,<br/>All in One Place</h1>
   <p>
-    Klinik is a growing set of health-related modules.
-    Some modules can use optional images (like fingernails or mucus) to provide
-    general, educational information and help you prepare for care.
+    Klinik is a growing collection of health-related modules.
+    Some modules may use optional images to provide general, educational
+    information and help you better understand patterns in your health.
   </p>
   <div class="splash-note">No personal information stored.</div>
 </div>
@@ -273,42 +198,38 @@ def page_home():
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown(
         """
-<h2>How it works</h2>
-<div class="subtle">
-1) Read a quick safety note<br/>
-2) Browse modules<br/>
-3) (Later) Use modules as you build them
+<div class="card">
+  <h2>What you’ll find here</h2>
+  <div class="subtle">
+    • Image-based health insights (educational)<br/>
+    • Tools to organize observations before a clinic visit<br/>
+    • Clear, non-diagnostic explanations
+  </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="kbtn">', unsafe_allow_html=True)
     if st.button("Start"):
         nav("intro")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    phone_end()
-
 def page_intro():
-    phone_start()
     header()
-
     st.markdown(
         """
 <div class="card">
   <h2>Important Information</h2>
   <div class="subtle">
-    Klinik is a health hub. It can show general, educational guidance and help you organize what you notice,
-    but it does not diagnose conditions.
+    Klinik is a health hub for learning and organization. It does not diagnose
+    medical conditions or replace professional care.
   </div>
   <div class="hr"></div>
   <div class="subtle">
-    • Image-based modules (when added) are optional and can be affected by lighting and camera quality.<br/>
+    • Image-based modules can be affected by lighting and camera quality.<br/>
     • If you have severe symptoms or feel unsafe, seek urgent care immediately.
   </div>
 </div>
@@ -326,91 +247,65 @@ def page_intro():
         nav("home")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    phone_end()
-
 def page_modules():
-    phone_start()
     header()
-
     st.markdown(
         """
 <div class="card">
   <h2>Modules</h2>
   <div class="subtle">
-    This is your hub. Modules will show up here as you build them.
-    For now, everything is “Coming soon”.
+    This is your health hub. Modules will appear here as they are developed.
   </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
 
-    # Placeholders based on your examples (NOT diagnostic wording)
-    placeholders: List[Dict[str, str]] = [
+    modules: List[Dict[str, str]] = [
         {
             "name": "Fingernail Check (Image)",
-            "desc": "Upload a nail photo to get general educational notes (ex: discoloration, vertical ridges).",
-            "tag": "Coming soon",
+            "desc": "Upload a nail photo to get general educational notes about color, ridges, or visible patterns.",
         },
         {
             "name": "Mucus Color Check (Image)",
-            "desc": "Upload a photo to get basic, non-diagnostic info about common mucus color patterns.",
-            "tag": "Coming soon",
+            "desc": "Provides basic, non-diagnostic information about common mucus color patterns.",
         },
         {
             "name": "Tongue & Lip Color (Image)",
-            "desc": "Educational notes from photos plus a short questionnaire to organize observations.",
-            "tag": "Coming soon",
+            "desc": "Helps organize visual observations with short follow-up questions.",
         },
         {
             "name": "Bug Bite Check (Image)",
-            "desc": "Helps categorize bite-like patterns and suggests general next steps (monitor vs. get checked).",
-            "tag": "Coming soon",
+            "desc": "Educational categorization of bite-like patterns and when to consider next steps.",
         },
         {
-            "name": "Wound Healing Stage (Image)",
-            "desc": "Helps document how healing looks over time and when to consider getting help.",
-            "tag": "Coming soon",
+            "name": "Wound Healing Tracker (Image)",
+            "desc": "Helps document how healing appears over time and when to seek care.",
         },
         {
             "name": "Clinic Summary Export",
-            "desc": "Turns your inputs into a clean summary you can share at a visit.",
-            "tag": "Coming soon",
+            "desc": "Turns your inputs into a clean, shareable summary for visits.",
         },
     ]
 
     st.markdown("<div class='card'><div class='grid'>", unsafe_allow_html=True)
-    for m in placeholders:
+    for m in modules:
         st.markdown(
             f"""
 <div class="module">
   <div class="name">{m['name']}</div>
   <div class="desc">{m['desc']}</div>
-  <div class="pill">{m['tag']}</div>
+  <div class="pill">Coming soon</div>
 </div>
 """,
             unsafe_allow_html=True,
         )
     st.markdown("</div></div>", unsafe_allow_html=True)
 
-    st.markdown(
-        """
-<div class="card">
-  <div class="small">
-    Tip: When you start adding modules, keep each one focused:
-    one input type, one goal, one safe output.
-  </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
     st.markdown('<div class="kbtn-secondary">', unsafe_allow_html=True)
     if st.button("Back"):
         nav("intro")
     st.markdown("</div>", unsafe_allow_html=True)
-
-    phone_end()
 
 # ---------------- Router ----------------
 route = st.session_state["route"]
