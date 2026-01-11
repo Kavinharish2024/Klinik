@@ -1,14 +1,16 @@
-# klinik_app.py
+# huemetry_hub_app.py  (you can keep the filename klinik_app.py if you want)
 import streamlit as st
 from typing import List, Dict
 
+APP_NAME = "Huemetry Hub"
+
 # ---------------- Page config ----------------
 st.set_page_config(
-    page_title="Klinik",
+    page_title=APP_NAME,
     layout="centered",
     menu_items={
         "Get Help": "https://www.cdc.gov/",
-        "About": "Klinik is a health hub with multiple educational health modules. Not a medical diagnosis tool.",
+        "About": f"{APP_NAME} is a health hub with multiple educational health modules. Not a medical diagnosis tool.",
     },
 )
 
@@ -35,24 +37,24 @@ header, footer {{ visibility: hidden; }}
   max-width: 720px;
 }}
 
-.klinik-top {{
+.app-top {{
   display:flex;
   align-items:center;
   justify-content:center;
   gap:10px;
   margin-bottom: 16px;
 }}
-.klinik-badge {{
+.app-badge {{
   width: 30px; height: 30px;
   border-radius: 10px;
   background: {PRIMARY};
   display:flex; align-items:center; justify-content:center;
   box-shadow: 0 12px 26px rgba(42,168,161,0.20);
 }}
-.klinik-badge span {{
+.app-badge span {{
   color: white; font-weight: 900; font-size: 18px;
 }}
-.klinik-title {{
+.app-title {{
   font-weight: 900;
   font-size: 22px;
 }}
@@ -172,10 +174,10 @@ def nav(route: str):
 
 def header():
     st.markdown(
-        """
-<div class="klinik-top">
-  <div class="klinik-badge"><span>+</span></div>
-  <div class="klinik-title">Klinik</div>
+        f"""
+<div class="app-top">
+  <div class="app-badge"><span>+</span></div>
+  <div class="app-title">{APP_NAME}</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -184,11 +186,11 @@ def header():
 # ---------------- Pages ----------------
 def page_home():
     st.markdown(
-        """
+        f"""
 <div class="splash">
   <h1>Your Health Hub,<br/>All in One Place</h1>
   <p>
-    Klinik is a growing collection of health-related modules.
+    {APP_NAME} is a growing collection of health-related modules.
     Some modules may use optional images to provide general, educational
     information and help you better understand patterns in your health.
   </p>
@@ -220,11 +222,11 @@ def page_home():
 def page_intro():
     header()
     st.markdown(
-        """
+        f"""
 <div class="card">
   <h2>Important Information</h2>
   <div class="subtle">
-    Klinik is a health hub for learning and organization. It does not diagnose
+    {APP_NAME} is a health hub for learning and organization. It does not diagnose
     medical conditions or replace professional care.
   </div>
   <div class="hr"></div>
@@ -250,7 +252,7 @@ def page_intro():
 def page_modules():
     header()
     st.markdown(
-        """
+        f"""
 <div class="card">
   <h2>Modules</h2>
   <div class="subtle">
